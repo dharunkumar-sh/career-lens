@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import ProfileDropdown from "@/components/ui/profile-dropdown";
 import { Briefcase, TrendingUp, FileText } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -75,9 +76,12 @@ export default function DashboardPage() {
             <p className="text-slate-400 mb-4">
               Analyze your resume to identify skill gaps
             </p>
-            <button className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+            <Link
+              href="/dashboard/resume-analysis"
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors block text-center"
+            >
               Analyze Resume
-            </button>
+            </Link>
           </div>
 
           {/* Job Matching Card */}
@@ -91,9 +95,12 @@ export default function DashboardPage() {
             <p className="text-slate-400 mb-4">
               Find jobs that match your profile and skills
             </p>
-            <button className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+            <Link
+              href="/dashboard/job-matching"
+              className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors block text-center"
+            >
               Explore Jobs
-            </button>
+            </Link>
           </div>
 
           {/* Profile Card */}
@@ -107,9 +114,12 @@ export default function DashboardPage() {
             <p className="text-slate-400 mb-4">
               Update your profile information and preferences
             </p>
-            <button className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+            <Link
+              href="/dashboard/profile"
+              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors block text-center"
+            >
               Edit Profile
-            </button>
+            </Link>
           </div>
         </div>
 

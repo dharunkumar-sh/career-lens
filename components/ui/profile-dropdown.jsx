@@ -71,8 +71,7 @@ export default function ProfileDropdown() {
             <button
               onClick={() => {
                 setIsOpen(false);
-                // Navigate to profile page when ready
-                router.push("/dashboard");
+                router.push("/dashboard/profile");
               }}
               className="w-full px-4 py-2 text-sm text-slate-300 hover:bg-slate-700/50 flex items-center gap-3 transition-colors"
             >

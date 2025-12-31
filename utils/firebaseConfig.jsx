@@ -8,6 +8,7 @@ import {
   sendPasswordResetEmail,
   sendEmailVerification,
   onAuthStateChanged,
+  applyActionCode,
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -52,4 +53,4 @@ export const resendVerificationEmail = async (user) => {
   return await sendEmailVerification(user);
 };
 
-export { onAuthStateChanged };
+export { onAuthStateChanged, applyActionCode };
