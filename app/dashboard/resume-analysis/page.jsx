@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ProfileDropdown from "@/components/ui/profile-dropdown";
+import { saveResumeAnalysis } from "@/utils/firebaseConfig";
 import {
   FileText,
   Upload,
@@ -80,7 +81,19 @@ export default function ResumeAnalysisPage() {
       setAnalysisResult(data);
       // Save to localStorage for job matching
       localStorage.setItem("lastResumeAnalysis", JSON.stringify(data));
-      toast.success("Resume analyzed successfully!");
+
+      // Save to Firestore if user is logged in
+      if (user?.uid) {
+        try {
+          await saveResumeAnalysis(user.uid, data);
+          toast.success("Resume analyzed and saved!");
+        } catch (firestoreError) {
+          console.error("Error saving to Firestore:", firestoreError);
+          toast.success("Resume analyzed! (Save to cloud failed)");
+        }
+      } else {
+        toast.success("Resume analyzed successfully!");
+      }
     } catch (err) {
       console.error("Analysis error:", err);
       setError(err.message);
@@ -160,7 +173,7 @@ export default function ResumeAnalysisPage() {
         {/* Back Button */}
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
@@ -223,14 +236,14 @@ export default function ResumeAnalysisPage() {
                     setAnalysisResult(null);
                     setError(null);
                   }}
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-medium transition-colors"
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-medium transition-colors cursor-pointer"
                 >
                   Clear
                 </button>
                 <button
                   onClick={handleAnalyze}
                   disabled={analyzing}
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   {analyzing ? (
                     <>
@@ -427,7 +440,7 @@ export default function ResumeAnalysisPage() {
                       {analysisResult.metadata.wordCount?.toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+                  <div className="bg-linear-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
                     <p className="text-purple-400 text-xs font-medium mb-1">
                       Pages
                     </p>
@@ -435,7 +448,7 @@ export default function ResumeAnalysisPage() {
                       {analysisResult.metadata.pageCount}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-lg p-4">
+                  <div className="bg-linear-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-lg p-4">
                     <p className="text-green-400 text-xs font-medium mb-1">
                       Action Verbs
                     </p>

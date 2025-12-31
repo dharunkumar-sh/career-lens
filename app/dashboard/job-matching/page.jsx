@@ -5,12 +5,19 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ProfileDropdown from "@/components/ui/profile-dropdown";
 import {
+  saveJob,
+  removeSavedJob,
+  getSavedJobs,
+  trackJobApplication,
+} from "@/utils/firebaseConfig";
+import {
   TrendingUp,
   ArrowLeft,
   MapPin,
   Building2,
   Clock,
   Bookmark,
+  BookmarkCheck,
   ExternalLink,
   Search,
   Loader2,
@@ -41,12 +48,37 @@ export default function JobMatchingPage() {
   const [isDemo, setIsDemo] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  // Load saved jobs and user skills from localStorage
+  // Autocomplete state
+  const [jobSuggestions, setJobSuggestions] = useState([]);
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showJobSuggestions, setShowJobSuggestions] = useState(false);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+
+  // Load saved jobs and user skills from localStorage and Firestore
   useEffect(() => {
-    const saved = localStorage.getItem("savedJobs");
-    if (saved) {
-      setSavedJobs(JSON.parse(saved));
-    }
+    const loadSavedJobs = async () => {
+      // Try to load from Firestore first
+      if (user?.uid) {
+        try {
+          const firestoreJobs = await getSavedJobs(user.uid);
+          if (firestoreJobs.length > 0) {
+            setSavedJobs(firestoreJobs);
+            localStorage.setItem("savedJobs", JSON.stringify(firestoreJobs));
+            return;
+          }
+        } catch (error) {
+          console.error("Error loading from Firestore:", error);
+        }
+      }
+
+      // Fallback to localStorage
+      const saved = localStorage.getItem("savedJobs");
+      if (saved) {
+        setSavedJobs(JSON.parse(saved));
+      }
+    };
+
+    loadSavedJobs();
 
     // Load user skills from last resume analysis
     const analysisResult = localStorage.getItem("lastResumeAnalysis");
@@ -60,7 +92,7 @@ export default function JobMatchingPage() {
         console.error("Error loading skills:", e);
       }
     }
-  }, []);
+  }, [user?.uid]);
 
   // Save jobs to localStorage when updated
   useEffect(() => {
@@ -74,9 +106,64 @@ export default function JobMatchingPage() {
     }
   }, [isAuthenticated, loading, router]);
 
+  // Fetch job title suggestions
+  useEffect(() => {
+    const fetchJobSuggestions = async () => {
+      if (searchQuery.length < 2) {
+        setJobSuggestions([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/jobs?autocomplete=job&query=${encodeURIComponent(searchQuery)}`
+        );
+        const data = await response.json();
+        if (data.success) {
+          setJobSuggestions(data.suggestions || []);
+        }
+      } catch (error) {
+        console.error("Job suggestions error:", error);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchJobSuggestions, 200);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Fetch location suggestions
+  useEffect(() => {
+    const fetchLocationSuggestions = async () => {
+      if (location.length < 2) {
+        setLocationSuggestions([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/jobs?autocomplete=location&query=${encodeURIComponent(
+            location
+          )}`
+        );
+        const data = await response.json();
+        if (data.success) {
+          setLocationSuggestions(data.suggestions || []);
+        }
+      } catch (error) {
+        console.error("Location suggestions error:", error);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchLocationSuggestions, 200);
+    return () => clearTimeout(debounceTimer);
+  }, [location]);
+
   // Search jobs
   const handleSearch = async (e) => {
     e?.preventDefault();
+    setShowJobSuggestions(false);
+    setShowLocationSuggestions(false);
+
     if (!searchQuery.trim() && !location.trim()) {
       toast.error("Please enter a job title or location");
       return;
@@ -173,17 +260,60 @@ export default function JobMatchingPage() {
     return Math.min(99, Math.max(40, Math.round(50 + matchRatio * 50)));
   };
 
-  const toggleSaveJob = (job) => {
-    setSavedJobs((prev) => {
-      const isAlreadySaved = prev.some((j) => j.id === job.id);
-      if (isAlreadySaved) {
-        toast.success("Job removed from saved");
-        return prev.filter((j) => j.id !== job.id);
-      } else {
-        toast.success("Job saved!");
-        return [...prev, job];
+  const toggleSaveJob = async (job) => {
+    const isAlreadySaved = savedJobs.some(
+      (j) => j.id === job.id || j.jobId === job.id
+    );
+
+    if (isAlreadySaved) {
+      // Remove job
+      setSavedJobs((prev) =>
+        prev.filter((j) => j.id !== job.id && j.jobId !== job.id)
+      );
+      toast.success("Job removed from saved");
+
+      // Remove from Firestore
+      if (user?.uid) {
+        try {
+          await removeSavedJob(user.uid, job.id);
+        } catch (error) {
+          console.error("Error removing from Firestore:", error);
+        }
       }
-    });
+    } else {
+      // Save job
+      setSavedJobs((prev) => [...prev, job]);
+      toast.success("Job saved!");
+
+      // Save to Firestore
+      if (user?.uid) {
+        try {
+          await saveJob(user.uid, job);
+        } catch (error) {
+          console.error("Error saving to Firestore:", error);
+        }
+      }
+    }
+
+    // Update localStorage
+    localStorage.setItem("savedJobs", JSON.stringify(savedJobs));
+  };
+
+  const handleApply = async (job) => {
+    // Track application in Firestore
+    if (user?.uid) {
+      try {
+        await trackJobApplication(user.uid, job);
+        toast.success("Application tracked!");
+      } catch (error) {
+        console.error("Error tracking application:", error);
+      }
+    }
+
+    // Open apply link
+    if (job.applyLink) {
+      window.open(job.applyLink, "_blank");
+    }
   };
 
   const getScoreColor = (score) => {
@@ -193,14 +323,20 @@ export default function JobMatchingPage() {
     return "bg-red-500/20 text-red-400";
   };
 
-  const filteredJobs = jobs.filter((job) => {
-    if (filter === "all") return true;
-    if (filter === "remote") return job.isRemote;
-    if (filter === "fulltime") return job.type === "Full-time";
-    if (filter === "contract") return job.type === "Contract";
-    if (filter === "saved") return savedJobs.some((j) => j.id === job.id);
-    return true;
-  });
+  // When filter is "saved", show all saved jobs; otherwise filter from search results
+  const filteredJobs =
+    filter === "saved"
+      ? savedJobs.map((job) => ({
+          ...job,
+          id: job.jobId || job.id, // Ensure consistent id field
+        }))
+      : jobs.filter((job) => {
+          if (filter === "all") return true;
+          if (filter === "remote") return job.isRemote;
+          if (filter === "fulltime") return job.type === "Full-time";
+          if (filter === "contract") return job.type === "Contract";
+          return true;
+        });
 
   if (loading) {
     return (
@@ -231,7 +367,7 @@ export default function JobMatchingPage() {
         {/* Back Button */}
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
@@ -254,30 +390,80 @@ export default function JobMatchingPage() {
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 mb-8">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4">
+              {/* Job Title Input with Autocomplete */}
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
                 <input
                   type="text"
                   placeholder="Job title, keywords, or company"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowJobSuggestions(true)}
+                  onBlur={() =>
+                    setTimeout(() => setShowJobSuggestions(false), 200)
+                  }
                   className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
+                {/* Job Suggestions Dropdown */}
+                {showJobSuggestions && jobSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    {jobSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(suggestion);
+                          setShowJobSuggestions(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <Briefcase className="w-4 h-4 text-slate-500" />
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Location Input with Autocomplete */}
               <div className="flex-1 relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
                 <input
                   type="text"
                   placeholder="Location (city, state, or 'remote')"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
+                  onFocus={() => setShowLocationSuggestions(true)}
+                  onBlur={() =>
+                    setTimeout(() => setShowLocationSuggestions(false), 200)
+                  }
                   className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                 />
+                {/* Location Suggestions Dropdown */}
+                {showLocationSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    {locationSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          setLocation(suggestion);
+                          setShowLocationSuggestions(false);
+                        }}
+                        className="w-full px-4 py-2.5 text-left text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        <MapPin className="w-4 h-4 text-slate-500" />
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <button
                 type="submit"
                 disabled={isSearching}
-                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isSearching ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -294,7 +480,7 @@ export default function JobMatchingPage() {
                 type="button"
                 onClick={getSuggestedJobs}
                 disabled={isLoadingSuggestions}
-                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center gap-2 border border-purple-500/30"
+                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 rounded-lg font-medium transition-colors flex items-center gap-2 border border-purple-500/30 cursor-pointer"
               >
                 {isLoadingSuggestions ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -337,7 +523,7 @@ export default function JobMatchingPage() {
               <button
                 key={filterType}
                 onClick={() => setFilter(filterType)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors capitalize cursor-pointer ${
                   filter === filterType
                     ? "bg-cyan-600 text-white"
                     : "bg-slate-800 text-slate-400 hover:bg-slate-700"
@@ -379,16 +565,17 @@ export default function JobMatchingPage() {
         )}
 
         {/* Results Count */}
-        {hasSearched && (
+        {(hasSearched || filter === "saved") && (
           <p className="text-slate-400 mb-4">
-            {filteredJobs.length} job{filteredJobs.length !== 1 ? "s" : ""}{" "}
-            found
-            {filter !== "all" && ` (filtered: ${filter})`}
+            {filteredJobs.length} {filter === "saved" ? "saved " : ""}job
+            {filteredJobs.length !== 1 ? "s" : ""}{" "}
+            {filter === "saved" ? "" : "found"}
+            {filter !== "all" && filter !== "saved" && ` (filtered: ${filter})`}
           </p>
         )}
 
         {/* Job Listings */}
-        {!hasSearched ? (
+        {!hasSearched && filter !== "saved" ? (
           <div className="text-center py-16">
             <Briefcase className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">
@@ -401,7 +588,7 @@ export default function JobMatchingPage() {
             <button
               onClick={getSuggestedJobs}
               disabled={isLoadingSuggestions}
-              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors inline-flex items-center gap-2 cursor-pointer"
             >
               <Sparkles className="w-5 h-5" />
               Get Personalized Job Suggestions
@@ -410,7 +597,9 @@ export default function JobMatchingPage() {
         ) : filteredJobs.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-slate-400">
-              No jobs found matching your criteria.
+              {filter === "saved"
+                ? "You haven't saved any jobs yet. Search for jobs and click the bookmark icon to save them."
+                : "No jobs found matching your criteria."}
             </p>
           </div>
         ) : (
@@ -535,9 +724,12 @@ export default function JobMatchingPage() {
                                 icon: "ℹ️",
                               }
                             );
+                          } else {
+                            // Track application
+                            handleApply(job);
                           }
                         }}
-                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
                       >
                         Apply Now
                         <ExternalLink className="w-4 h-4" />
@@ -546,7 +738,7 @@ export default function JobMatchingPage() {
                         onClick={() =>
                           setExpandedJob(expandedJob === job.id ? null : job.id)
                         }
-                        className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors flex items-center gap-2"
+                        className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
                       >
                         {expandedJob === job.id ? (
                           <>
@@ -569,24 +761,28 @@ export default function JobMatchingPage() {
                   {/* Save Button */}
                   <button
                     onClick={() => toggleSaveJob(job)}
-                    className={`p-2 rounded-lg transition-colors shrink-0 ${
-                      savedJobs.some((j) => j.id === job.id)
+                    className={`p-2 rounded-lg transition-colors shrink-0 cursor-pointer ${
+                      savedJobs.some(
+                        (j) => j.id === job.id || j.jobId === job.id
+                      )
                         ? "bg-cyan-500/20 text-cyan-400"
                         : "bg-slate-700/50 text-slate-400 hover:text-white"
                     }`}
                     title={
-                      savedJobs.some((j) => j.id === job.id)
+                      savedJobs.some(
+                        (j) => j.id === job.id || j.jobId === job.id
+                      )
                         ? "Remove from saved"
                         : "Save job"
                     }
                   >
-                    <Bookmark
-                      className={`w-5 h-5 ${
-                        savedJobs.some((j) => j.id === job.id)
-                          ? "fill-current"
-                          : ""
-                      }`}
-                    />
+                    {savedJobs.some(
+                      (j) => j.id === job.id || j.jobId === job.id
+                    ) ? (
+                      <BookmarkCheck className="w-5 h-5" />
+                    ) : (
+                      <Bookmark className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </div>

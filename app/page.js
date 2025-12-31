@@ -1,10 +1,43 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { NoiseBackground } from "@/components/ui/noise-background";
-import { Rocket, ZapIcon } from "lucide-react";
+import { Rocket, ZapIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Home() {
+  const { isAuthenticated, loading } = useAuth();
+  const router = useRouter();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, loading, router]);
+
+  // Show loading state while checking auth
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      </div>
+    );
+  }
+
+  // If authenticated, don't render the page (will redirect)
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full h-screen">
       <Image
@@ -50,7 +83,7 @@ export default function Home() {
 
           {/* Buttons */}
           <div className="flex gap-6 items-center">
-            <Link href={"/login"}>
+            <Link href={"/signup"}>
               <Button
                 size="lg"
                 className="bg-transparent bg-linear-to-r from-amber-600 via-amber-600/60 to-amber-600 bg-size-[200%_auto] text-white hover:bg-transparent hover:bg-position-[99%_center] focus-visible:ring-amber-600/20 dark:from-amber-400 dark:via-amber-400/60 dark:to-amber-400 dark:focus-visible:ring-amber-400/40"

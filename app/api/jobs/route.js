@@ -12,6 +12,22 @@ export async function GET(request) {
     const page = searchParams.get("page") || "1";
     const remote = searchParams.get("remote") === "true";
     const employmentType = searchParams.get("type") || ""; // FULLTIME, PARTTIME, CONTRACTOR, INTERN
+    const autocomplete = searchParams.get("autocomplete"); // "job" or "location"
+
+    // Handle autocomplete requests
+    if (autocomplete === "job") {
+      return NextResponse.json({
+        success: true,
+        suggestions: getJobSuggestions(query),
+      });
+    }
+
+    if (autocomplete === "location") {
+      return NextResponse.json({
+        success: true,
+        suggestions: getLocationSuggestions(location || query),
+      });
+    }
 
     // Build search query
     let searchQuery = query;
@@ -43,16 +59,29 @@ export async function GET(request) {
       url.searchParams.append("employment_types", employmentType);
     }
 
+    console.log(
+      "Fetching jobs with API key:",
+      RAPIDAPI_KEY ? "Present" : "Missing"
+    );
+
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        "X-RapidAPI-Key": RAPIDAPI_KEY,
-        "X-RapidAPI-Host": RAPIDAPI_HOST,
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": RAPIDAPI_HOST,
       },
     });
 
+    // Handle API errors gracefully - fallback to mock data
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      console.error(`JSearch API error: ${response.status}`);
+      return NextResponse.json({
+        success: true,
+        jobs: getMockJobs(query),
+        totalJobs: 10,
+        isDemo: true,
+        message: "API temporarily unavailable. Showing demo jobs.",
+      });
     }
 
     const data = await response.json();
@@ -138,13 +167,24 @@ export async function POST(request) {
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        "X-RapidAPI-Key": RAPIDAPI_KEY,
-        "X-RapidAPI-Host": RAPIDAPI_HOST,
+        "x-rapidapi-key": RAPIDAPI_KEY,
+        "x-rapidapi-host": RAPIDAPI_HOST,
       },
     });
 
+    // Handle API errors gracefully
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status}`);
+      console.error(`JSearch API error in POST: ${response.status}`);
+      return NextResponse.json({
+        success: true,
+        jobs: getMockJobs(searchQuery).map((job) => ({
+          ...job,
+          matchScore: Math.floor(Math.random() * 30) + 60,
+        })),
+        totalJobs: 10,
+        isDemo: true,
+        message: "API temporarily unavailable. Showing demo jobs.",
+      });
     }
 
     const data = await response.json();
@@ -548,4 +588,176 @@ function getMockJobs(query) {
   ];
 
   return baseJobs;
+}
+
+// Job title suggestions for autocomplete
+function getJobSuggestions(query) {
+  const allJobTitles = [
+    "Software Engineer",
+    "Software Developer",
+    "Senior Software Engineer",
+    "Full Stack Developer",
+    "Full Stack Engineer",
+    "Frontend Developer",
+    "Frontend Engineer",
+    "Backend Developer",
+    "Backend Engineer",
+    "React Developer",
+    "React Native Developer",
+    "Angular Developer",
+    "Vue.js Developer",
+    "Node.js Developer",
+    "Python Developer",
+    "Java Developer",
+    "JavaScript Developer",
+    "TypeScript Developer",
+    "PHP Developer",
+    "Ruby on Rails Developer",
+    "Go Developer",
+    "Rust Developer",
+    "iOS Developer",
+    "Android Developer",
+    "Mobile App Developer",
+    "DevOps Engineer",
+    "Cloud Engineer",
+    "AWS Solutions Architect",
+    "Azure Developer",
+    "Data Engineer",
+    "Data Scientist",
+    "Data Analyst",
+    "Machine Learning Engineer",
+    "AI Engineer",
+    "ML Engineer",
+    "QA Engineer",
+    "Test Engineer",
+    "Automation Engineer",
+    "Site Reliability Engineer",
+    "SRE",
+    "Platform Engineer",
+    "Security Engineer",
+    "Cybersecurity Analyst",
+    "Network Engineer",
+    "System Administrator",
+    "Database Administrator",
+    "DBA",
+    "Technical Lead",
+    "Tech Lead",
+    "Engineering Manager",
+    "Product Manager",
+    "Project Manager",
+    "Scrum Master",
+    "UI/UX Designer",
+    "UX Designer",
+    "UI Designer",
+    "Product Designer",
+    "Graphic Designer",
+    "Web Developer",
+    "WordPress Developer",
+    "Shopify Developer",
+    "Salesforce Developer",
+    "SAP Developer",
+    "Blockchain Developer",
+    "Web3 Developer",
+    "Game Developer",
+    "Embedded Systems Engineer",
+    "Firmware Engineer",
+    "IT Support Specialist",
+    "Technical Support Engineer",
+    "Solutions Engineer",
+    "Sales Engineer",
+    "Business Analyst",
+    "Systems Analyst",
+  ];
+
+  const lowerQuery = query.toLowerCase();
+  return allJobTitles
+    .filter((title) => title.toLowerCase().includes(lowerQuery))
+    .slice(0, 8);
+}
+
+// Location suggestions for autocomplete
+function getLocationSuggestions(query) {
+  const allLocations = [
+    // India
+    "Bengaluru, India",
+    "Bangalore, India",
+    "Mumbai, India",
+    "Delhi, India",
+    "New Delhi, India",
+    "Hyderabad, India",
+    "Chennai, India",
+    "Pune, India",
+    "Kolkata, India",
+    "Ahmedabad, India",
+    "Gurgaon, India",
+    "Noida, India",
+    "Jaipur, India",
+    "Chandigarh, India",
+    "Kochi, India",
+    "Coimbatore, India",
+    "Indore, India",
+    "Thiruvananthapuram, India",
+    // USA
+    "San Francisco, CA",
+    "San Jose, CA",
+    "Los Angeles, CA",
+    "San Diego, CA",
+    "Seattle, WA",
+    "New York, NY",
+    "Austin, TX",
+    "Dallas, TX",
+    "Houston, TX",
+    "Chicago, IL",
+    "Boston, MA",
+    "Denver, CO",
+    "Atlanta, GA",
+    "Miami, FL",
+    "Washington, DC",
+    "Phoenix, AZ",
+    "Portland, OR",
+    "Raleigh, NC",
+    "Charlotte, NC",
+    "Minneapolis, MN",
+    "Detroit, MI",
+    "Philadelphia, PA",
+    // UK
+    "London, UK",
+    "Manchester, UK",
+    "Birmingham, UK",
+    "Edinburgh, UK",
+    "Bristol, UK",
+    "Cambridge, UK",
+    "Oxford, UK",
+    // Europe
+    "Berlin, Germany",
+    "Munich, Germany",
+    "Amsterdam, Netherlands",
+    "Dublin, Ireland",
+    "Paris, France",
+    "Barcelona, Spain",
+    "Stockholm, Sweden",
+    "Zurich, Switzerland",
+    // Canada
+    "Toronto, Canada",
+    "Vancouver, Canada",
+    "Montreal, Canada",
+    "Ottawa, Canada",
+    "Calgary, Canada",
+    // Australia
+    "Sydney, Australia",
+    "Melbourne, Australia",
+    "Brisbane, Australia",
+    "Perth, Australia",
+    // Singapore
+    "Singapore",
+    // Remote options
+    "Remote",
+    "Work from Home",
+    "Hybrid",
+  ];
+
+  const lowerQuery = query.toLowerCase();
+  return allLocations
+    .filter((loc) => loc.toLowerCase().includes(lowerQuery))
+    .slice(0, 8);
 }

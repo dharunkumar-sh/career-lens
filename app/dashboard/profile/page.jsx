@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ProfileDropdown from "@/components/ui/profile-dropdown";
+import { saveUserProfile, getUserProfile } from "@/utils/firebaseConfig";
 import {
   Briefcase,
   ArrowLeft,
@@ -24,6 +25,7 @@ export default function ProfilePage() {
   const { user, isAuthenticated, loading } = useAuth();
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [profile, setProfile] = useState({
     displayName: "",
     email: "",
@@ -44,16 +46,53 @@ export default function ProfilePage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  // Load user data
+  // Load user data from Firestore
   useEffect(() => {
-    if (user) {
-      setProfile((prev) => ({
-        ...prev,
-        displayName: user.displayName || "",
-        email: user.email || "",
-      }));
+    const loadProfile = async () => {
+      if (user?.uid) {
+        try {
+          const firestoreProfile = await getUserProfile(user.uid);
+          if (firestoreProfile) {
+            setProfile({
+              displayName: firestoreProfile.name || user.displayName || "",
+              email: user.email || "",
+              phone: firestoreProfile.phone || "",
+              location: firestoreProfile.location || "",
+              title: firestoreProfile.title || "",
+              bio: firestoreProfile.bio || "",
+              linkedin: firestoreProfile.linkedin || "",
+              github: firestoreProfile.github || "",
+              skills: firestoreProfile.skills || "",
+              experience: firestoreProfile.experience || "",
+            });
+          } else {
+            // No Firestore profile yet, use auth data
+            setProfile((prev) => ({
+              ...prev,
+              displayName: user.displayName || "",
+              email: user.email || "",
+            }));
+          }
+        } catch (error) {
+          console.error("Error loading profile:", error);
+          // Fallback to auth data
+          setProfile((prev) => ({
+            ...prev,
+            displayName: user.displayName || "",
+            email: user.email || "",
+          }));
+        } finally {
+          setLoadingProfile(false);
+        }
+      } else {
+        setLoadingProfile(false);
+      }
+    };
+
+    if (!loading && isAuthenticated) {
+      loadProfile();
     }
-  }, [user]);
+  }, [user, loading, isAuthenticated]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -64,17 +103,33 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
 
-    // Simulate save - replace with actual API call
-    setTimeout(() => {
+    try {
+      if (user?.uid) {
+        await saveUserProfile(user.uid, {
+          name: profile.displayName,
+          phone: profile.phone,
+          location: profile.location,
+          title: profile.title,
+          bio: profile.bio,
+          linkedin: profile.linkedin,
+          github: profile.github,
+          skills: profile.skills,
+          experience: profile.experience,
+        });
+        toast.success("Profile updated successfully!");
+      }
+    } catch (error) {
+      console.error("Error saving profile:", error);
+      toast.error("Failed to save profile. Please try again.");
+    } finally {
       setSaving(false);
-      toast.success("Profile updated successfully!");
-    }, 1500);
+    }
   };
 
-  if (loading) {
+  if (loading || loadingProfile) {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-slate-400 text-lg">Loading...</div>
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
       </div>
     );
   }
@@ -105,7 +160,7 @@ export default function ProfilePage() {
         {/* Back Button */}
         <Link
           href="/dashboard"
-          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
@@ -312,7 +367,7 @@ export default function ProfilePage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="px-8 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
             >
               {saving ? (
                 <>

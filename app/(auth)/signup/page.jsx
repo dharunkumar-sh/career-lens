@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { signUp } from "@/utils/firebaseConfig";
+import { signUp, initializeUserDocument } from "@/utils/firebaseConfig";
 import { useAuth } from "@/context/AuthContext";
 
 const SignupPage = () => {
@@ -14,6 +14,7 @@ const SignupPage = () => {
   const { isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isRocketLaunching, setIsRocketLaunching] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +37,7 @@ const SignupPage = () => {
   const handleSignupClick = async (e) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    if (!name || !email || !password) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -50,7 +51,16 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      await signUp(email, password);
+      const userCredential = await signUp(email, password);
+
+      // Initialize user document in Firestore
+      try {
+        await initializeUserDocument(userCredential.user.uid, email, name);
+      } catch (firestoreError) {
+        console.error("Error initializing user document:", firestoreError);
+        // Don't block signup if Firestore fails
+      }
+
       setIsRocketLaunching(true);
       toast.success("Account created! Please check your email to verify.");
 
@@ -155,6 +165,19 @@ const SignupPage = () => {
 
           <form onSubmit={handleSignupClick}>
             <label className="block text-sm text-slate-300 mt-3 mb-2">
+              Full Name
+            </label>
+            <input
+              className="w-full h-10 rounded-full px-4 bg-transparent border border-slate-400/30 placeholder-slate-400 focus:bg-transparent focus:placeholder-slate-200 transition-colors duration-300"
+              placeholder="Enter your full name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              spellCheck="false"
+              autoComplete="name"
+            />
+
+            <label className="block text-sm text-slate-300 mt-4 mb-2">
               Email Address
             </label>
             <input
