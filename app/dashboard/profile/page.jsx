@@ -139,9 +139,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div
+      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
+      }}
+    >
       {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-800/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
         <div className="mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -182,9 +188,9 @@ export default function ProfilePage() {
         {/* Profile Form */}
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Avatar Section */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
             <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-cyan-400 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-linear-to-br from-green-400 to-cyan-400 flex items-center justify-center">
                 <span className="text-slate-900 font-bold text-2xl">
                   {profile.displayName
                     ? profile.displayName.charAt(0).toUpperCase()
@@ -201,7 +207,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Basic Information */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-white mb-6">
               Basic Information
             </h2>
@@ -265,7 +271,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Professional Information */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-white mb-6">
               Professional Information
             </h2>
@@ -326,7 +332,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Social Links */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
             <h2 className="text-lg font-semibold text-white mb-6">
               Social Links
             </h2>

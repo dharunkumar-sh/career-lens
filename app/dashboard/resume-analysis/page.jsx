@@ -152,9 +152,15 @@ export default function ResumeAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div
+      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
+      }}
+    >
       {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-800/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
         <div className="mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -193,7 +199,7 @@ export default function ResumeAnalysisPage() {
         </div>
 
         {/* Upload Section */}
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-8 mb-8">
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-8 mb-8">
           <div className="flex flex-col items-center justify-center">
             <label
               htmlFor="resume-upload"
@@ -277,7 +283,7 @@ export default function ResumeAnalysisPage() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Score Card - Hero Section */}
             <div
-              className={`bg-slate-800/50 border ${
+              className={`bg-white/5 backdrop-blur-md border ${
                 getScoreColor(analysisResult.score).border
               } rounded-xl p-8`}
             >
@@ -374,7 +380,7 @@ export default function ResumeAnalysisPage() {
             {/* Contact Info Extracted */}
             {analysisResult.contactInfo &&
               Object.keys(analysisResult.contactInfo).length > 0 && (
-                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+                <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
                   <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <User className="w-5 h-5 text-blue-400" />
                     Contact Information Detected
@@ -426,13 +432,13 @@ export default function ResumeAnalysisPage() {
 
             {/* Statistics Grid */}
             {analysisResult.metadata && (
-              <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Info className="w-5 h-5 text-slate-400" />
                   Resume Statistics
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-4">
+                  <div className="bg-linear-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-4">
                     <p className="text-blue-400 text-xs font-medium mb-1">
                       Word Count
                     </p>
@@ -456,7 +462,7 @@ export default function ResumeAnalysisPage() {
                       {analysisResult.metadata.actionVerbCount}
                     </p>
                   </div>
-                  <div className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-lg p-4">
+                  <div className="bg-linear-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-lg p-4">
                     <p className="text-amber-400 text-xs font-medium mb-1">
                       Metrics Found
                     </p>
@@ -534,7 +540,7 @@ export default function ResumeAnalysisPage() {
 
             {/* Education Section */}
             {analysisResult.education?.length > 0 && (
-              <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-purple-400" />
                   Education Detected
@@ -555,7 +561,7 @@ export default function ResumeAnalysisPage() {
 
             {/* Experience Highlights */}
             {analysisResult.experienceHighlights?.length > 0 && (
-              <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-cyan-400" />
                   Key Experience Highlights
@@ -579,7 +585,7 @@ export default function ResumeAnalysisPage() {
             {/* Strengths & Improvements Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Strengths */}
-              <div className="bg-slate-800/50 border border-green-500/30 rounded-lg p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-green-500/30 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-green-400" />
                   Strengths
@@ -600,7 +606,7 @@ export default function ResumeAnalysisPage() {
               </div>
 
               {/* Areas for Improvement */}
-              <div className="bg-slate-800/50 border border-amber-500/30 rounded-lg p-6">
+              <div className="bg-white/5 backdrop-blur-md border border-amber-500/30 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-amber-400" />
                   Areas for Improvement
@@ -622,7 +628,7 @@ export default function ResumeAnalysisPage() {
             </div>
 
             {/* Skills Analysis */}
-            <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <Code className="w-5 h-5 text-blue-400" />
                 Skills Analysis

@@ -82,9 +82,15 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div
+      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
+      }}
+    >
       {/* Header */}
-      <header className="border-b border-slate-700/50 bg-slate-800/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
         <div className="mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -116,7 +122,7 @@ export default function DashboardPage() {
 
         {/* Stats Section */}
         <div className="mb-12 grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-cyan-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-2 mb-2">
               <BarChart3 className="w-4 h-4 text-cyan-400" />
               <p className="text-slate-400 text-sm">Resume Score</p>
@@ -140,7 +146,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-amber-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-amber-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-2 mb-2">
               <Bookmark className="w-4 h-4 text-amber-400" />
               <p className="text-slate-400 text-sm">Saved Jobs</p>
@@ -154,7 +160,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-green-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-green-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-2 mb-2">
               <Send className="w-4 h-4 text-green-400" />
               <p className="text-slate-400 text-sm">Applications</p>
@@ -168,7 +174,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-blue-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-2 mb-2">
               <FileText className="w-4 h-4 text-blue-400" />
               <p className="text-slate-400 text-sm">Resumes Analyzed</p>
@@ -185,7 +191,7 @@ export default function DashboardPage() {
 
         {/* Skills Preview */}
         {stats.skills.length > 0 && (
-          <div className="mb-12 bg-slate-800/50 border border-slate-700/50 rounded-lg p-6">
+          <div className="mb-12 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 transition-all shadow-lg">
             <h3 className="text-lg font-semibold text-white mb-4">
               Your Top Skills
             </h3>
@@ -210,7 +216,7 @@ export default function DashboardPage() {
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Resume Analysis Card */}
-          <div className="bg-slate-800/50 border border-blue-500/30 rounded-lg p-6 hover:border-blue-500/50 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/50 transition-all shadow-lg">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <FileText className="w-6 h-6 text-blue-400" />
@@ -234,7 +240,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Job Matching Card */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-cyan-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-cyan-400" />
@@ -253,7 +259,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Profile Card */}
-          <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-6 hover:border-green-500/30 transition-colors">
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-green-500/30 transition-all shadow-lg">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                 <Briefcase className="w-6 h-6 text-green-400" />
@@ -274,7 +280,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         {stats.resumeScore === 0 && (
-          <div className="mt-12 bg-linear-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-lg p-6">
+          <div className="mt-12 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
             <h3 className="text-lg font-semibold text-white mb-2">
               Get Started
             </h3>
