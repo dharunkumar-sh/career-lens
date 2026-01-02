@@ -91,12 +91,14 @@ export default function Home() {
                 Get Started <Rocket />
               </Button>
             </Link>
-            <Button
-              size="lg"
-              className="from-primary border shadow-2xl bg-transparent bg-linear-to-r hover:bg-transparent hover:underline underline-offset-4"
-            >
-              See How it works ▶
-            </Button>
+            <Link href={"/how-it-works"}>
+              <Button
+                size="lg"
+                className="from-primary border shadow-2xl bg-transparent bg-linear-to-r hover:bg-transparent hover:underline underline-offset-4"
+              >
+                See How it works ▶
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
