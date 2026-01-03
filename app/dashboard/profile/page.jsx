@@ -150,12 +150,14 @@ export default function ProfilePage() {
       <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
         <div className="mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.svg"
-              alt="Project Logo"
-              width={160}
-              height={160}
-            />
+            <Link href="/">
+              <Image
+                src="/logo.svg"
+                alt="Project Logo"
+                width={160}
+                height={160}
+              />
+            </Link>
           </div>
           <ProfileDropdown />
         </div>

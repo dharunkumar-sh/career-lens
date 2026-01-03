@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Rocket, Mail } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { signUp, initializeUserDocument } from "@/utils/firebaseConfig";
@@ -102,7 +103,9 @@ const SignupPage = () => {
       >
         <div className="absolute inset-0 bg-black/55 pointer-events-none" />
         <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+          <Link href="/">
+            <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+          </Link>
         </div>
 
         <div className="relative w-170 pl-16">
@@ -120,7 +123,8 @@ const SignupPage = () => {
               </p>
               <p className="text-slate-500 text-sm mb-6">
                 Please check your inbox and click the verification link to
-                activate your account. Don't forget to check your spam folder!
+                activate your account. Don&apos;t forget to check your spam
+                folder!
               </p>
               <Button
                 size="lg"
@@ -153,7 +157,9 @@ const SignupPage = () => {
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
       {/* Logo */}
       <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-        <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        <Link href="/">
+          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        </Link>
       </div>
 
       <div className="relative w-170 pl-16">

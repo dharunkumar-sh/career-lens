@@ -55,7 +55,9 @@ export default function Home() {
       <div className="absolute inset-0 flex flex-col justify-start pt-40 px-16">
         {/* Logo */}
         <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+          <Link href="/">
+            <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+          </Link>
         </div>
 
         {/* Main content */}

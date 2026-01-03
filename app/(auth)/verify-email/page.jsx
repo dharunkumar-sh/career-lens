@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { applyActionCode, auth } from "@/utils/firebaseConfig";
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
@@ -64,7 +65,9 @@ export default function VerifyEmailPage() {
     >
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
       <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-        <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        <Link href="/">
+          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        </Link>
       </div>
 
       <div className="relative w-170 pl-16">

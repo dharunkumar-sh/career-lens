@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail, Rocket } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { resetPassword } from "@/utils/firebaseConfig";
@@ -69,7 +70,9 @@ const ForgotPasswordPage = () => {
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
       {/* Logo */}
       <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-        <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        <Link href="/">
+          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
+        </Link>
       </div>
 
       <div className="relative w-170 pl-16">

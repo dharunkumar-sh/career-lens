@@ -13,6 +13,7 @@ import {
   Bookmark,
   Send,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -93,12 +94,14 @@ export default function DashboardPage() {
       <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
         <div className="mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.svg"
-              alt="Project Logo"
-              width={160}
-              height={160}
-            />
+            <Link href="/">
+              <Image
+                src="/logo.svg"
+                alt="Project Logo"
+                width={160}
+                height={160}
+              />
+            </Link>
           </div>
           <ProfileDropdown />
         </div>
@@ -214,7 +217,7 @@ export default function DashboardPage() {
         )}
 
         {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Resume Analysis Card */}
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/50 transition-all shadow-lg">
             <div className="flex items-center gap-3 mb-4">
@@ -274,6 +277,27 @@ export default function DashboardPage() {
               className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
             >
               Edit Profile
+            </Link>
+          </div>
+
+          {/* AI Career Coach Card */}
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-purple-500/30 transition-all shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-6 h-6 text-purple-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">
+                AI Career Coach
+              </h3>
+            </div>
+            <p className="text-slate-400 mb-4">
+              Get AI-powered cover letters and personalized interview prep
+            </p>
+            <Link
+              href="/dashboard/career-coach"
+              className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
+            >
+              Open Assistant
             </Link>
           </div>
         </div>
