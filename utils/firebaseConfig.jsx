@@ -28,7 +28,7 @@ import {
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: "AIzaSyDBR0NzEwQOoMVwVVZTxCxjPHt6T4tDTu8",
   authDomain: "career-lens-guide.firebaseapp.com",
   projectId: "career-lens-guide",
   storageBucket: "career-lens-guide.firebasestorage.app",
