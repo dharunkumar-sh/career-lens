@@ -19,10 +19,10 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in or just logged in
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/dashboard");
+      router.replace("/dashboard");
     }
   }, [isAuthenticated, router]);
 
@@ -64,7 +64,7 @@ const AuthPage = () => {
           {
             duration: 6000,
             icon: "📧",
-          }
+          },
         );
         setIsLoading(false);
         return;
@@ -73,9 +73,8 @@ const AuthPage = () => {
       setIsRocketLaunching(true);
       toast.success("Welcome back! Logging you in...");
 
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 600);
+      // The useEffect watching isAuthenticated will handle the redirect
+      // once Firebase auth state updates
     } catch (error) {
       console.error("Login error:", error);
       switch (error.code) {

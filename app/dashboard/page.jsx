@@ -36,7 +36,7 @@ export default function DashboardPage() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
-      router.push("/login");
+      router.replace("/login");
     }
   }, [isAuthenticated, loading, router]);
 
@@ -135,7 +135,7 @@ export default function DashboardPage() {
             ) : (
               <p
                 className={`text-3xl font-bold ${getScoreColor(
-                  stats.resumeScore
+                  stats.resumeScore,
                 )}`}
               >
                 {stats.resumeScore > 0 ? `${stats.resumeScore}%` : "—"}

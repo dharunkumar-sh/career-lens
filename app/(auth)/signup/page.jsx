@@ -24,7 +24,7 @@ const SignupPage = () => {
   // Redirect if already logged in and verified
   useEffect(() => {
     if (isAuthenticated) {
-      router.push("/");
+      router.replace("/dashboard");
     }
   }, [isAuthenticated, router]);
 
