@@ -388,14 +388,6 @@ export default function ResumeAnalysisPage() {
                     Contact Information Detected
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {analysisResult.contactInfo.name && (
-                      <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="text-white">
-                          {analysisResult.contactInfo.name}
-                        </span>
-                      </div>
-                    )}
                     {analysisResult.contactInfo.email && (
                       <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
                         <Mail className="w-4 h-4 text-slate-400" />
@@ -537,27 +529,6 @@ export default function ResumeAnalysisPage() {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Education Section */}
-            {analysisResult.education?.length > 0 && (
-              <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                  <GraduationCap className="w-5 h-5 text-purple-400" />
-                  Education Detected
-                </h2>
-                <ul className="space-y-2">
-                  {analysisResult.education.map((edu, index) => (
-                    <li
-                      key={index}
-                      className="text-slate-300 flex items-start gap-2 bg-slate-700/30 rounded-lg p-3"
-                    >
-                      <CheckCircle className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                      <span>{edu}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
 

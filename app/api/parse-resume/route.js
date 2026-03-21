@@ -5,12 +5,11 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
-
+    
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Validate file type
     if (!file.type.includes("pdf")) {
       return NextResponse.json(
         { error: "Please upload a PDF file" },
@@ -18,11 +17,9 @@ export async function POST(request) {
       );
     }
 
-    // Get file buffer
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
-    // Extract text using unpdf - use getDocumentProxy for reliable extraction
     let extractedText = "";
     let totalPages = 0;
 
@@ -34,50 +31,134 @@ export async function POST(request) {
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
+        
+        // Better line detection by vertical position
+        let lastY = -1;
+        let pageLines = [];
+        let currentLine = "";
 
-        // Extract text from items, handling different item types
-        const pageText = textContent.items
-          .filter((item) => item.str && item.str.trim())
-          .map((item) => item.str)
-          .join(" ");
+        // Sort items by Y (descending) then X (ascending) to handle reading order
+        const items = [...textContent.items].sort((a, b) => {
+          const yDiff = b.transform[5] - a.transform[5];
+          if (Math.abs(yDiff) > 2) return yDiff; // Significant Y difference
+          return a.transform[4] - b.transform[4]; // Small Y difference, sort by X
+        });
 
-        if (pageText.trim()) {
-          textParts.push(pageText);
+        for (const item of items) {
+          if (!item.str || !item.str.trim()) continue;
+          
+          const y = item.transform[5];
+          if (lastY !== -1 && Math.abs(y - lastY) > 5) {
+            pageLines.push(currentLine.trim());
+            currentLine = "";
+          }
+          currentLine += item.str + " ";
+          lastY = y;
         }
+        if (currentLine) pageLines.push(currentLine.trim());
+        
+        const pageText = pageLines.filter(l => l.length > 0).join("\n");
+        if (pageText.trim()) textParts.push(pageText);
       }
-
       extractedText = textParts.join("\n\n");
-
-      // Log for debugging
-      console.log(
-        `Extracted ${extractedText.length} characters from ${totalPages} pages`
-      );
+      console.log(`Extracted ${extractedText.length} characters from ${totalPages} pages`);
     } catch (pdfError) {
       console.error("PDF extraction failed:", pdfError);
-      throw new Error(
-        "Could not extract text from this PDF. The file may be scanned, image-based, or corrupted."
-      );
+      throw new Error("Could not extract text from this PDF. The file may be scanned or corrupted.");
     }
 
-    // Ensure extractedText is always a string
     extractedText = String(extractedText || "");
 
     if (!extractedText || extractedText.trim().length < 20) {
       return NextResponse.json(
-        {
-          error:
-            "Could not extract meaningful text from this PDF. It may be a scanned document or image-based PDF.",
-        },
+        { error: "Could not extract meaningful text from this PDF." },
         { status: 400 }
       );
     }
 
-    // Analyze the resume
-    const analysis = analyzeResume(extractedText, totalPages);
+    // 1. Deterministic Parsing
+    const analysis = analyzeResumeDeterministically(extractedText, totalPages);
+
+    // 2. Groq Integration for Suggestions
+    let improvements = analysis.improvements;
+    let strengths = analysis.strengths;
+    let missingSkills = analysis.skills.missing;
+
+    if (process.env.GROQ_API_KEY) {
+      try {
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "system",
+                content: `You are an expert ATS (Applicant Tracking System) optimization algorithm. You analyze the resume text and the deterministically detected metadata, and generate strictly actionable improvement suggestions, strengths, and missing skills to elevate the candidate's ATS score.
+CRITICAL INSTRUCTION: Return ONLY a raw JSON object with NO markdown wrapping, matching this exact schema:
+{
+  "improvements": ["highly specific improvement to boost ATS score", "another tip"],
+  "strengths": ["what they did right for ATS", "another strength"],
+  "missingSkills": ["relevant skill 1", "relevant skill 2", "relevant skill 3"]
+}`
+              },
+              {
+                role: "user",
+                content: `Current ATS Score: ${analysis.score}/100
+Present Skills: ${analysis.skills.present.join(", ")}
+Sections Detected: ${analysis.metadata.sectionsFound.join(", ")}
+Quantifiable Metrics Found: ${analysis.metadata.quantifiableCount}
+Word Count: ${analysis.metadata.wordCount}
+
+Resume Text Context:
+${extractedText.substring(0, 4000)}`
+              }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.2
+          })
+        });
+
+        if (groqResponse.ok) {
+          const groqData = await groqResponse.json();
+          const groqResult = JSON.parse(groqData.choices[0].message.content);
+          
+          if (groqResult.improvements && Array.isArray(groqResult.improvements) && groqResult.improvements.length > 0) {
+            improvements = groqResult.improvements;
+          }
+          if (groqResult.strengths && Array.isArray(groqResult.strengths) && groqResult.strengths.length > 0) {
+            strengths = groqResult.strengths;
+          }
+          if (groqResult.missingSkills && Array.isArray(groqResult.missingSkills) && groqResult.missingSkills.length > 0) {
+            missingSkills = groqResult.missingSkills;
+          }
+        } else {
+          console.error("Groq API returned an error status:", groqResponse.status, await groqResponse.text());
+        }
+      } catch (err) {
+        console.error("Groq API error, falling back to local generated suggestions:", err);
+      }
+    } else {
+      console.warn("GROQ_API_KEY not set. Using local deterministic suggestions instead.");
+    }
 
     return NextResponse.json({
       success: true,
-      ...analysis,
+      score: analysis.score,
+      contactInfo: analysis.contactInfo,
+      skills: {
+        present: analysis.skills.present,
+        missing: missingSkills,
+      },
+      metadata: analysis.metadata,
+      experienceHighlights: analysis.experienceHighlights,
+      strengths,
+      improvements,
+      extractedText: extractedText.substring(0, 2000) + (extractedText.length > 2000 ? "..." : ""),
+      fullTextLength: extractedText.length,
     });
   } catch (error) {
     console.error("PDF parsing error:", error);
@@ -88,70 +169,45 @@ export async function POST(request) {
   }
 }
 
-function analyzeResume(text, pageCount) {
+// ----------------------------------------------------------------------
+// DETERMINISTIC PARSING ENGINE
+// ----------------------------------------------------------------------
+
+function analyzeResumeDeterministically(text, pageCount) {
   const normalizedText = text.toLowerCase();
   const wordCount = text.split(/\s+/).filter((w) => w.length > 0).length;
 
-  // Extract contact information
-  const contactInfo = extractContactInfo(text);
+  const contactInfoRaw = extractContactInfo(text);
+  
+  const contactInfo = {
+    email: contactInfoRaw.emails[0] || null,
+    phone: contactInfoRaw.phones[0] || null,
+    linkedin: contactInfoRaw.linkedin[0] || null,
+    github: contactInfoRaw.github[0] || null,
+  };
 
-  // Extract and categorize skills
   const skillsData = extractSkills(normalizedText);
   const allFoundSkills = Object.values(skillsData).flat();
 
-  // Count action verbs
   const actionVerbsData = countActionVerbs(normalizedText);
   const actionVerbsFound = actionVerbsData.map((v) => v.verb);
 
-  // Detect sections
   const sections = detectSections(normalizedText);
-  const sectionsFound = Object.entries(sections)
-    .filter(([_, found]) => found)
-    .map(([name]) => name);
+  const sectionsFound = Object.entries(sections).filter(([_, found]) => found).map(([name]) => name);
 
-  // Find quantifiable achievements
   const quantifiableData = findQuantifiables(text);
-
-  // Extract education
-  const education = extractEducation(text);
-
-  // Extract experience highlights
   const experienceHighlights = extractExperienceHighlights(text);
-
-  // Calculate score
-  const score = calculateScore(
-    allFoundSkills,
-    actionVerbsFound,
-    sectionsFound,
-    contactInfo,
-    wordCount,
-    quantifiableData.length
-  );
-
-  // Generate feedback
-  const { strengths, improvements } = generateFeedback(
-    allFoundSkills,
-    sectionsFound,
-    contactInfo,
-    actionVerbsFound.length,
-    quantifiableData.length
-  );
-
-  // Get recommended skills to add
-  const missingSkills = getRecommendedSkills(normalizedText);
+  
+  const score = calculateScore(allFoundSkills, actionVerbsFound, sectionsFound, contactInfoRaw, wordCount, quantifiableData.length);
+  const { strengths, improvements } = generateFallbackFeedback(allFoundSkills, sectionsFound, contactInfoRaw, actionVerbsFound.length, quantifiableData.length);
+  const missingSkillsLocal = getRecommendedSkillsLocal(normalizedText);
 
   return {
     score,
-    contactInfo: {
-      name: extractName(text),
-      email: contactInfo.emails[0] || null,
-      phone: contactInfo.phones[0] || null,
-      linkedin: contactInfo.linkedin[0] || null,
-      github: contactInfo.github[0] || null,
-    },
+    contactInfo,
     skills: {
       present: allFoundSkills,
-      missing: missingSkills,
+      missing: missingSkillsLocal,
     },
     metadata: {
       pageCount,
@@ -162,664 +218,187 @@ function analyzeResume(text, pageCount) {
       actionVerbsFound: actionVerbsFound.slice(0, 15),
       quantifiableExamples: quantifiableData.slice(0, 10),
     },
-    education,
     experienceHighlights,
     strengths,
-    improvements,
-    extractedText: text.substring(0, 2000) + (text.length > 2000 ? "..." : ""),
-    fullTextLength: text.length,
+    improvements
   };
 }
 
-function extractName(text) {
-  // Try to extract name from first few lines
-  const lines = text.split("\n").slice(0, 5);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    // Name is typically 2-4 words, mostly letters
-    if (trimmed && trimmed.length > 3 && trimmed.length < 50) {
-      const words = trimmed.split(/\s+/);
-      if (words.length >= 2 && words.length <= 4) {
-        const isName = words.every((w) => /^[A-Za-z.-]+$/.test(w));
-        if (isName && !trimmed.toLowerCase().includes("@")) {
-          return trimmed;
-        }
-      }
-    }
-  }
-  return null;
-}
-
-function extractEducation(text) {
-  const education = [];
-  const lines = text.split("\n");
-
-  // Keywords that indicate education entries
-  const degreeKeywords = [
-    "bachelor",
-    "master",
-    "ph.d",
-    "phd",
-    "doctorate",
-    "diploma",
-    "b.s",
-    "bs",
-    "m.s",
-    "ms",
-    "b.a",
-    "ba",
-    "m.a",
-    "ma",
-    "mba",
-    "b.tech",
-    "btech",
-    "m.tech",
-    "mtech",
-    "b.e",
-    "be",
-    "m.e",
-    "me",
-    "b.sc",
-    "bsc",
-    "m.sc",
-    "msc",
-    "b.com",
-    "bcom",
-    "m.com",
-    "mcom",
-    "bca",
-    "mca",
-    "b.eng",
-    "beng",
-    "m.eng",
-    "meng",
-  ];
-
-  const institutionKeywords = [
-    "university",
-    "college",
-    "institute",
-    "school",
-    "academy",
-    "iit",
-    "nit",
-    "bits",
-    "iiit",
-  ];
-
-  const fieldKeywords = [
-    "computer science",
-    "engineering",
-    "information technology",
-    "software",
-    "electronics",
-    "mechanical",
-    "electrical",
-    "civil",
-    "business",
-    "commerce",
-    "mathematics",
-    "physics",
-    "chemistry",
-    "biology",
-    "economics",
-    "finance",
-    "marketing",
-    "management",
-  ];
-
-  for (const line of lines) {
-    const lowerLine = line.toLowerCase().trim();
-    if (lowerLine.length < 5 || lowerLine.length > 250) continue;
-
-    // Check if line contains degree or institution keywords
-    const hasDegree = degreeKeywords.some((k) => lowerLine.includes(k));
-    const hasInstitution = institutionKeywords.some((k) =>
-      lowerLine.includes(k)
-    );
-    const hasField = fieldKeywords.some((k) => lowerLine.includes(k));
-
-    if (
-      (hasDegree || hasInstitution) &&
-      !education.some((e) => e.toLowerCase() === lowerLine)
-    ) {
-      // Clean up the line
-      let cleaned = line.trim();
-      // Remove leading bullets, dashes, or special characters
-      cleaned = cleaned.replace(/^[•\-–—*|►▪]+\s*/, "");
-
-      if (cleaned.length > 5) {
-        education.push(cleaned);
-      }
-    }
-  }
-
-  // Also try pattern matching for inline education mentions
-  const eduPatterns = [
-    /(?:bachelor'?s?|master'?s?|ph\.?d\.?|b\.?s\.?|m\.?s\.?|b\.?a\.?|m\.?a\.?|mba|b\.?tech|m\.?tech|b\.?e\.?|m\.?e\.?)\s+(?:in|of)?\s+[\w\s]+/gi,
-  ];
-
-  for (const pattern of eduPatterns) {
-    const matches = text.match(pattern) || [];
-    for (const match of matches) {
-      const cleaned = match.trim();
-      if (
-        cleaned.length > 8 &&
-        cleaned.length < 100 &&
-        !education.some((e) => e.toLowerCase().includes(cleaned.toLowerCase()))
-      ) {
-        education.push(cleaned);
-      }
-    }
-  }
-
-  return [...new Set(education)].slice(0, 5);
-}
+// Name extraction removed per user request
 
 function extractExperienceHighlights(text) {
   const highlights = [];
-  const sentences = text.split(/[.!?]+/);
-
-  const impactPatterns = [
-    /(?:increased|decreased|improved|reduced|grew|saved|generated|delivered|achieved|led|managed)/i,
-    /\d+%/,
-    /\$[\d,]+/,
-    /\d+\s*(?:years?|months?|team|people|projects?|clients?|users?)/i,
-  ];
-
+  const sentences = text.split(/[.!?\n]+/);
+  const impactPatterns = [/(?:increased|decreased|improved|reduced|grew|saved|generated|delivered|achieved)[\s\w]*\d+%/i, /\$[\d,]+/, /\d+\s*(?:years|months|users|clients|projects)/i];
+  
   for (const sentence of sentences) {
     const trimmed = sentence.trim();
-    if (trimmed.length > 30 && trimmed.length < 300) {
-      for (const pattern of impactPatterns) {
-        if (pattern.test(trimmed)) {
-          highlights.push(trimmed);
-          break;
-        }
-      }
+    if (trimmed.length > 30 && trimmed.length < 250) {
+      if (impactPatterns.some(p => p.test(trimmed))) highlights.push(trimmed.replace(/^[•\-–—*|►▪]+\s*/, ""));
     }
   }
-
-  return [...new Set(highlights)].slice(0, 8);
+  return [...new Set(highlights)].slice(0, 6);
 }
 
 function findQuantifiables(text) {
-  const patterns = [
-    /\d+%/g,
-    /\$[\d,]+(?:\.\d{2})?(?:k|m|b)?/gi,
-    /\d+\+?\s*(?:years?|months?)/gi,
-    /\d+\+?\s*(?:projects?|clients?|users?|customers?|team\s*members?)/gi,
-  ];
-
+  const patterns = [/\d+(?:\.\d+)?%/g, /\$[\d,]+(?:\.\d{2})?(?:[kKmMbB])?/g, /\b\d+\+?\s*(?:users|clients|customers|projects|servers|nodes|years|months|people)\b/gi];
   const found = [];
-  for (const pattern of patterns) {
-    const matches = text.match(pattern) || [];
+  for (const p of patterns) {
+    const matches = text.match(p) || [];
     found.push(...matches);
   }
-
   return [...new Set(found)];
 }
 
-function getRecommendedSkills(text) {
-  const popularSkills = [
-    "React",
-    "Node.js",
-    "Python",
-    "AWS",
-    "Docker",
-    "Kubernetes",
-    "TypeScript",
-    "PostgreSQL",
-    "MongoDB",
-    "Git",
-    "CI/CD",
-    "REST APIs",
-    "GraphQL",
-    "Agile",
-    "Scrum",
-    "Leadership",
-    "Communication",
+function getRecommendedSkillsLocal(text) {
+  const techMap = [
+    {
+      core: /\b(?:react|angular|vue|next\.js|frontend|html|css)\b/i,
+      recs: ["TypeScript", "Tailwind CSS", "Redux", "GraphQL", "Jest", "Webpack"]
+    },
+    {
+      core: /\b(?:node\.?js|express|backend|api|fastapi|django)\b/i,
+      recs: ["MongoDB", "PostgreSQL", "Redis", "Microservices", "Docker", "REST APIs"]
+    },
+    {
+      core: /\b(?:python|machine learning|data|pandas|numpy|tensorflow|pytorch)\b/i,
+      recs: ["scikit-learn", "SQL", "Apache Spark", "Airflow", "MLOps", "AWS"]
+    },
+    {
+      core: /\b(?:java|spring|c\+\+|c#|\.net)\b/i,
+      recs: ["Kubernetes", "Kafka", "Jenkins", "Azure", "CI/CD", "Hibernate"]
+    },
+    {
+      core: /\b(?:aws|azure|gcp|docker|kubernetes|devops|cloud|terraform)\b/i,
+      recs: ["Terraform", "Ansible", "Prometheus", "Grafana", "Linux", "GitLab CI"]
+    },
+    {
+      core: /\b(?:sql|mysql|postgresql|mongodb|database)\b/i,
+      recs: ["NoSQL", "Elasticsearch", "Data Modeling", "ETL", "Tableau", "Snowflake"]
+    },
+    {
+      core: /\b(?:mobile|ios|android|flutter|react native|swift|kotlin)\b/i,
+      recs: ["Firebase", "SQLite", "App Store Deployment", "CI/CD", "GraphQL", "UI/UX"]
+    }
   ];
 
-  const missing = [];
-  for (const skill of popularSkills) {
-    if (!text.includes(skill.toLowerCase())) {
-      missing.push(skill);
+  let recommendations = new Set();
+  const lowerText = text.toLowerCase();
+  
+  // Cross-reference user's raw text with tech ecosystem groups
+  for (const eco of techMap) {
+    if (eco.core.test(lowerText)) {
+      eco.recs.forEach(r => recommendations.add(r));
     }
   }
 
-  return missing.slice(0, 8);
+  // Fallback map if the user brings an empty/non-technical resume
+  if (recommendations.size === 0) {
+    ["Cloud Computing", "CI/CD", "Docker", "Agile Methodologies", "Git/Version Control", "Test-Driven Development"].forEach(r => recommendations.add(r));
+  }
+
+  // Filter out any skills the user already possesses
+  const finalRecs = Array.from(recommendations).filter(r => !lowerText.includes(r.toLowerCase()));
+
+  // Pad the array with standard popular skills if our cross-referencing came up notoriously short
+  if (finalRecs.length < 5) {
+    const pop = ["React", "Node.js", "TypeScript", "AWS", "Docker", "Kubernetes", "PostgreSQL", "CI/CD", "Agile"];
+    pop.filter(p => !lowerText.includes(p.toLowerCase())).forEach(p => finalRecs.push(p));
+  }
+
+  // Deduplicate, shuffle for dynamic feeling, and return top 6
+  return [...new Set(finalRecs)].sort(() => 0.5 - Math.random()).slice(0, 6);
 }
 
 function extractContactInfo(text) {
-  const emailRegex = /[\w.-]+@[\w.-]+\.\w+/gi;
-  // Enhanced phone regex to handle multiple formats:
-  // +1 (123) 456-7890, +91 98765 43210, 123-456-7890, (123) 456-7890, +44 20 7946 0958
-  const phoneRegex =
-    /(?:\+\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{3,5}[-.\s]?\d{0,4}/g;
-  const linkedinRegex = /(?:linkedin\.com\/in\/|linkedin:?\s*)[\w-]+/gi;
-  const githubRegex = /(?:github\.com\/|github:?\s*)[\w-]+/gi;
-  const websiteRegex =
-    /(?:https?:\/\/)?(?:www\.)?[\w-]+\.[\w.-]+(?:\/[\w.-]*)?/gi;
-
-  const emails = text.match(emailRegex) || [];
-  const phones = text.match(phoneRegex) || [];
-  const linkedin = text.match(linkedinRegex) || [];
-  const github = text.match(githubRegex) || [];
-
-  // Filter websites to exclude linkedin and github
-  let websites = text.match(websiteRegex) || [];
-  websites = websites.filter(
-    (w) =>
-      !w.includes("linkedin") &&
-      !w.includes("github") &&
-      !w.includes("@") &&
-      w.includes(".")
-  );
-
+  const emails = text.match(/[\w.-]+@[\w.-]+\.\w+/gi) || [];
+  const phones = text.match(/(?:\+\d{1,3}[-.\s]?)?(?:\(?\d{2,4}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{3,5}[-.\s]?\d{0,4}/g) || [];
+  const linkedin = text.match(/(?:linkedin\.com\/in\/|linkedin:?\s*)[\w-]+/gi) || [];
+  const github = text.match(/(?:github\.com\/|github:?\s*)[\w-]+/gi) || [];
   return {
     emails: [...new Set(emails)],
-    phones: [...new Set(phones)],
+    phones: [...new Set(phones)].filter(p => p.length >= 10),
     linkedin: [...new Set(linkedin)],
     github: [...new Set(github)],
-    websites: [...new Set(websites)].slice(0, 3),
   };
 }
 
 function extractSkills(text) {
-  const skillCategories = {
-    programming: [
-      "javascript",
-      "typescript",
-      "python",
-      "java",
-      "c\\+\\+",
-      "c#",
-      "ruby",
-      "php",
-      "swift",
-      "kotlin",
-      "go",
-      "golang",
-      "rust",
-      "scala",
-      "r\\b",
-      "matlab",
-      "perl",
-      "shell",
-      "bash",
-      "powershell",
-      "sql",
-      "html",
-      "css",
-      "sass",
-      "less",
-      "xml",
-      "json",
-      "yaml",
-    ],
-    frameworks: [
-      "react",
-      "angular",
-      "vue",
-      "svelte",
-      "next\\.?js",
-      "nuxt",
-      "node\\.?js",
-      "express",
-      "django",
-      "flask",
-      "fastapi",
-      "spring",
-      "laravel",
-      "rails",
-      "asp\\.net",
-      "\\.net",
-      "flutter",
-      "react native",
-      "electron",
-      "jquery",
-      "bootstrap",
-      "tailwind",
-      "material.?ui",
-    ],
-    databases: [
-      "mysql",
-      "postgresql",
-      "postgres",
-      "mongodb",
-      "redis",
-      "elasticsearch",
-      "cassandra",
-      "oracle",
-      "sql server",
-      "sqlite",
-      "dynamodb",
-      "firebase",
-      "supabase",
-      "neo4j",
-    ],
-    cloud: [
-      "aws",
-      "amazon web services",
-      "azure",
-      "google cloud",
-      "gcp",
-      "heroku",
-      "vercel",
-      "netlify",
-      "digitalocean",
-      "cloudflare",
-      "docker",
-      "kubernetes",
-      "k8s",
-      "terraform",
-      "jenkins",
-      "ci/cd",
-      "github actions",
-      "gitlab",
-    ],
-    tools: [
-      "git",
-      "github",
-      "gitlab",
-      "bitbucket",
-      "jira",
-      "confluence",
-      "slack",
-      "figma",
-      "sketch",
-      "adobe",
-      "photoshop",
-      "illustrator",
-      "vs code",
-      "intellij",
-      "postman",
-      "swagger",
-      "webpack",
-      "babel",
-      "npm",
-      "yarn",
-      "pip",
-    ],
-    softSkills: [
-      "leadership",
-      "communication",
-      "teamwork",
-      "collaboration",
-      "problem.?solving",
-      "analytical",
-      "creative",
-      "innovative",
-      "agile",
-      "scrum",
-      "project management",
-      "time management",
-      "critical thinking",
-      "adaptable",
-      "flexible",
-    ],
+  const cat = {
+    programming: ["javascript", "typescript", "python", "java", "c\\+\\+", "c#", "ruby", "php", "swift", "kotlin", "go", "rust", "sql", "html", "css", "bash"],
+    frameworks: ["react", "angular", "vue", "next\\.?js", "node\\.?js", "express", "django", "flask", "fastapi", "spring", "laravel", ".net", "flutter", "react native", "tailwind"],
+    databases: ["mysql", "postgresql", "postgres", "mongodb", "redis", "elasticsearch", "sqlite", "dynamodb", "firebase"],
+    cloud: ["aws", "azure", "google cloud", "gcp", "docker", "kubernetes", "terraform", "ci/cd", "github actions", "gitlab"],
+    tools: ["git", "github", "jira", "figma", "vs code", "postman", "webpack", "npm", "yarn", "linux"]
   };
-
-  const foundSkills = {};
-
-  for (const [category, skills] of Object.entries(skillCategories)) {
-    foundSkills[category] = [];
-    for (const skill of skills) {
-      const regex = new RegExp(`\\b${skill}\\b`, "gi");
-      if (regex.test(text)) {
-        // Capitalize properly
-        const match = text.match(regex);
-        if (match) {
-          foundSkills[category].push(match[0]);
-        }
-      }
+  const found = {};
+  for (const [k, v] of Object.entries(cat)) {
+    found[k] = [];
+    for (const s of v) {
+      const regex = new RegExp(`\\b${s}\\b`, "gi");
+      const match = text.match(regex);
+      if (match) found[k].push(match[0].toLowerCase());
     }
-    // Remove duplicates
-    foundSkills[category] = [...new Set(foundSkills[category])];
+    found[k] = [...new Set(found[k])];
   }
-
-  return foundSkills;
+  return found;
 }
 
 function countActionVerbs(text) {
-  const actionVerbs = [
-    "achieved",
-    "accomplished",
-    "administered",
-    "analyzed",
-    "architected",
-    "automated",
-    "built",
-    "collaborated",
-    "conducted",
-    "configured",
-    "coordinated",
-    "created",
-    "delivered",
-    "deployed",
-    "designed",
-    "developed",
-    "directed",
-    "documented",
-    "engineered",
-    "enhanced",
-    "established",
-    "executed",
-    "expanded",
-    "facilitated",
-    "formulated",
-    "generated",
-    "guided",
-    "implemented",
-    "improved",
-    "increased",
-    "initiated",
-    "integrated",
-    "introduced",
-    "launched",
-    "led",
-    "managed",
-    "maintained",
-    "mentored",
-    "migrated",
-    "modeled",
-    "negotiated",
-    "optimized",
-    "orchestrated",
-    "organized",
-    "oversaw",
-    "pioneered",
-    "planned",
-    "presented",
-    "prioritized",
-    "produced",
-    "programmed",
-    "reduced",
-    "refactored",
-    "researched",
-    "resolved",
-    "restructured",
-    "reviewed",
-    "scaled",
-    "simplified",
-    "solved",
-    "spearheaded",
-    "standardized",
-    "streamlined",
-    "strengthened",
-    "supervised",
-    "supported",
-    "tested",
-    "trained",
-    "transformed",
-    "troubleshot",
-    "upgraded",
-    "utilized",
-    "validated",
-    "wrote",
-  ];
-
+  const verbs = ["achieved", "developed", "managed", "created", "led", "improved", "designed", "implemented", "reduced", "spearheaded", "orchestrated", "engineered", "optimized", "increased", "delivered"];
   const found = [];
-  for (const verb of actionVerbs) {
-    const regex = new RegExp(`\\b${verb}\\b`, "gi");
-    const matches = text.match(regex);
-    if (matches) {
-      found.push({ verb, count: matches.length });
-    }
+  for (const v of verbs) {
+    const rx = new RegExp(`\\b${v}\\b`, "gi");
+    const m = text.match(rx);
+    if (m) found.push({ verb: v, count: m.length });
   }
-
-  return found.sort((a, b) => b.count - a.count);
+  return found.sort((a,b)=>b.count - a.count);
 }
 
 function detectSections(text) {
-  const sectionPatterns = {
-    summary: /(?:summary|objective|profile|about\s*me)/i,
-    experience:
-      /(?:experience|employment|work\s*history|professional\s*experience)/i,
-    education: /(?:education|academic|qualifications|degree)/i,
-    skills: /(?:skills|technical\s*skills|competencies|expertise)/i,
-    projects: /(?:projects|portfolio|personal\s*projects)/i,
-    certifications: /(?:certifications?|certificates?|licenses?|credentials?)/i,
-    awards: /(?:awards?|honors?|achievements?|recognition)/i,
-    publications: /(?:publications?|papers?|research)/i,
-    languages: /(?:languages?|linguistic)/i,
-    references: /(?:references?|recommendations?)/i,
-    volunteer: /(?:volunteer|community|extracurricular)/i,
+  return {
+    summary: /(?:summary|objective|profile|about\s*me)/i.test(text),
+    experience: /(?:experience|employment|work\s*history|professional\s*experience)/i.test(text),
+    education: /(?:education|academic|qualifications|degree)/i.test(text),
+    skills: /(?:skills|technical\s*skills|competencies|expertise)/i.test(text),
+    projects: /(?:projects|portfolio|personal\s*projects)/i.test(text),
   };
-
-  const foundSections = {};
-  for (const [section, pattern] of Object.entries(sectionPatterns)) {
-    foundSections[section] = pattern.test(text);
-  }
-
-  return foundSections;
 }
 
-function calculateScore(
-  skills,
-  actionVerbs,
-  sections,
-  contactInfo,
-  wordCount,
-  quantifiableCount
-) {
-  let totalScore = 0;
-
-  // Contact info score (15 points)
-  if (contactInfo.emails?.length > 0) totalScore += 5;
-  if (contactInfo.phones?.length > 0) totalScore += 4;
-  if (contactInfo.linkedin?.length > 0) totalScore += 3;
-  if (contactInfo.github?.length > 0) totalScore += 3;
-
-  // Skills score (25 points)
-  totalScore += Math.min(25, skills.length * 2);
-
-  // Action verbs score (15 points)
-  totalScore += Math.min(15, actionVerbs.length * 1.5);
-
-  // Sections score (20 points)
-  const requiredSections = ["experience", "education", "skills"];
-  const optionalSections = ["summary", "projects", "certifications", "awards"];
-
-  for (const section of requiredSections) {
-    if (sections.includes(section)) totalScore += 5;
-  }
-  for (const section of optionalSections) {
-    if (sections.includes(section)) totalScore += 1.25;
-  }
-
-  // Length/Content score (15 points)
-  if (wordCount >= 200) totalScore += 5;
-  if (wordCount >= 400) totalScore += 5;
-  if (wordCount >= 600) totalScore += 5;
-
-  // Quantifiable achievements (10 points)
-  totalScore += Math.min(10, quantifiableCount * 2);
-
-  return Math.min(100, Math.round(totalScore));
+function calculateScore(skills, actionVerbs, sections, contactInfo, wordCount, quantCount) {
+  let score = 0;
+  if (contactInfo.emails?.length) score += 5;
+  if (contactInfo.phones?.length) score += 3;
+  if (contactInfo.linkedin?.length) score += 2;
+  
+  score += Math.min(25, skills.length * 2);
+  score += Math.min(15, actionVerbs.length * 1.5);
+  
+  ["experience", "education", "skills"].forEach(s => { if (sections.includes(s)) score += 5; });
+  ["summary", "projects"].forEach(s => { if (sections.includes(s)) score += 2.5; });
+  
+  if (wordCount >= 250) score += 5;
+  if (wordCount >= 400) score += 5;
+  
+  score += Math.min(20, quantCount * 2.5); // 20 max for quantifiables
+  return Math.min(100, Math.round(score));
 }
 
-function generateFeedback(
-  skills,
-  sections,
-  contactInfo,
-  actionVerbCount,
-  quantifiableCount
-) {
+function generateFallbackFeedback(skills, sections, contactInfo, verbCount, quantCount) {
   const strengths = [];
   const improvements = [];
-
-  // Analyze contact info
-  if (contactInfo.emails?.length > 0 && contactInfo.phones?.length > 0) {
-    strengths.push("Contact information is complete with email and phone");
-  } else {
-    improvements.push("Add both email and phone number for easy contact");
-  }
-
-  if (contactInfo.linkedin?.length > 0) {
-    strengths.push("LinkedIn profile included - great for networking");
-  } else {
-    improvements.push("Consider adding your LinkedIn profile URL");
-  }
-
-  if (contactInfo.github?.length > 0) {
-    strengths.push("GitHub profile showcases your coding work");
-  }
-
-  // Analyze skills
-  if (skills.length >= 10) {
-    strengths.push(
-      `Strong skill variety with ${skills.length} skills identified`
-    );
-  } else if (skills.length >= 5) {
-    improvements.push("Consider adding more relevant skills to your resume");
-  } else {
-    improvements.push(
-      "Add more technical and soft skills to strengthen your profile"
-    );
-  }
-
-  // Analyze sections
-  const hasExperience = sections.includes("experience");
-  const hasEducation = sections.includes("education");
-  const hasSkills = sections.includes("skills");
-
-  if (hasExperience && hasEducation && hasSkills) {
-    strengths.push("Resume has all essential sections");
-  } else {
-    if (!hasExperience) improvements.push("Add a clear Experience section");
-    if (!hasEducation) improvements.push("Add an Education section");
-    if (!hasSkills) improvements.push("Add a dedicated Skills section");
-  }
-
-  if (!sections.includes("summary")) {
-    improvements.push("Consider adding a Professional Summary at the top");
-  }
-
-  if (sections.includes("projects")) {
-    strengths.push("Projects section helps showcase practical experience");
-  } else {
-    improvements.push(
-      "Adding a Projects section can highlight your practical work"
-    );
-  }
-
-  // Analyze quantifiable achievements
-  if (quantifiableCount < 3) {
-    improvements.push(
-      "Add more quantifiable achievements (numbers, percentages, metrics)"
-    );
-  } else {
-    strengths.push("Good use of quantifiable metrics in achievements");
-  }
-
-  if (actionVerbCount >= 10) {
-    strengths.push("Strong use of action verbs throughout");
-  } else {
-    improvements.push(
-      "Use more action verbs (achieved, developed, implemented, etc.)"
-    );
-  }
-
+  
+  if (skills.length >= 8) strengths.push("Strong variety of technical skills detected");
+  else improvements.push("Consider explicitly listing more technical/soft skills");
+  
+  if (sections.includes("experience") && sections.includes("education")) strengths.push("Core essential sections (Experience, Education) are present");
+  else improvements.push("Missing core sections like Experience or Education");
+  
+  if (verbCount >= 5) strengths.push("Good usage of impactful action verbs");
+  else improvements.push("Start bullet points with strong action verbs (e.g. 'Engineered', 'Orchestrated')");
+  
+  if (quantCount >= 3) strengths.push("Demonstrated impact with quantifiable metrics");
+  else improvements.push("Include more measurable metrics (%, $, numbers) to prove impact");
+  
   return { strengths, improvements };
 }
