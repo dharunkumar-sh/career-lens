@@ -110,17 +110,31 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
         {/* Welcome Section */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-white mb-2">
-            Welcome back,{" "}
-            <span className="text-amber-600">
-              {stats.name || user?.email?.split("@")[0]}
-            </span>
-            ! 👋
-          </h2>
-          <p className="text-slate-400">
-            Manage your career profile and track your progress
-          </p>
+        <div className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-white mb-2">
+              Welcome back,{" "}
+              <span className="text-amber-600">
+                {stats.name || user?.email?.split("@")[0]}
+              </span>
+              ! 👋
+            </h2>
+            <p className="text-slate-400">
+              Manage your career profile and track your progress
+            </p>
+          </div>
+          <div className="self-start md:self-auto flex items-center gap-2.5 px-4.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-lg backdrop-blur-md">
+            <span className="text-slate-400 text-sm">Account Plan:</span>
+            {loadingStats ? (
+              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+            ) : stats.plan === "pro" ? (
+              <span className="text-amber-500 text-sm font-extrabold flex items-center gap-1.5 animate-pulse">
+                <Sparkles className="w-4 h-4" /> Career Pro ({stats.billingCycle === "yearly" ? "Annual" : "Monthly"})
+              </span>
+            ) : (
+              <span className="text-slate-300 text-sm font-bold">Free Explorer</span>
+            )}
+          </div>
         </div>
 
         {/* Stats Section */}

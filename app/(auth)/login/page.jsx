@@ -1,17 +1,19 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, Rocket } from "lucide-react";
+import { Eye, EyeOff, Rocket, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import toast from "react-hot-toast";
 import { logIn, resendVerificationEmail } from "@/utils/firebaseConfig";
 import { useAuth } from "@/context/AuthContext";
 
-const AuthPage = () => {
+const LoginContent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
   const { isAuthenticated } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isRocketLaunching, setIsRocketLaunching] = useState(false);
@@ -22,9 +24,13 @@ const AuthPage = () => {
   // Redirect if already logged in or just logged in
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace("/dashboard");
+      if (redirect === "pricing") {
+        router.replace("/#pricing");
+      } else {
+        router.replace("/dashboard");
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, redirect]);
 
   const handleLoginClick = async (e) => {
     e.preventDefault();
@@ -64,7 +70,7 @@ const AuthPage = () => {
           {
             duration: 6000,
             icon: "📧",
-          },
+          }
         );
         setIsLoading(false);
         return;
@@ -72,9 +78,6 @@ const AuthPage = () => {
 
       setIsRocketLaunching(true);
       toast.success("Welcome back! Logging you in...");
-
-      // The useEffect watching isAuthenticated will handle the redirect
-      // once Firebase auth state updates
     } catch (error) {
       console.error("Login error:", error);
       switch (error.code) {
@@ -102,72 +105,74 @@ const AuthPage = () => {
 
   return (
     <div
-      className="min-h-screen relative flex items-center"
+      className="min-h-screen relative flex items-center justify-center font-sans"
       style={{
         backgroundImage: "url('/auth.jpeg')",
         backgroundSize: "cover",
-        backgroundPosition: "center right",
+        backgroundPosition: "center",
       }}
     >
-      <div className="absolute inset-0 bg-black/55 pointer-events-none" />
-      {/* Logo */}
-      <div className="text-white text-3xl font-bold text-right absolute top-8 right-12">
-        <Link href="/">
-          <Image src={"/logo.svg"} alt="Logo" width={185} height={185} />
-        </Link>
-      </div>
+      <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs" />
 
-      <div className="relative w-170 pl-16">
-        <div className="bg-[rgba(26,30,34,0.55)] border border-white/6 rounded-2xl p-10 backdrop-blur-lg text-slate-200 max-w-3xl">
-          <h1 className="text-white text-4xl font-bold mb-1">Welcome back!</h1>
-          <p className="text-slate-400 mb-6 text-base">
-            Continue improving your resume alignment.
+      <div className="relative z-10 w-full max-w-lg mx-auto p-4">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center">
+          <div className="mb-6 hover:scale-105 transition-transform duration-300">
+            <Link href="/">
+              <Image src="/logo.svg" alt="Project Logo" width={220} height={220} />
+            </Link>
+          </div>
+
+          <h2 className="text-3xl font-extrabold text-white text-center mb-2 tracking-tight">
+            Welcome Back!
+          </h2>
+          <p className="text-slate-400 text-base text-center mb-8 font-medium">
+            Log in to continue optimizing your career journey
           </p>
 
-          <form onSubmit={handleLoginClick}>
-            <label className="block text-sm text-slate-300 mt-3 mb-2">
-              Email Address
-            </label>
-            <input
-              className="w-full h-10 rounded-full px-4 bg-transparent border border-slate-400/30 placeholder-slate-400 focus:bg-transparent focus:placeholder-slate-200 transition-colors duration-300"
-              placeholder="Enter your email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              spellCheck="false"
-              autoComplete="email"
-            />
-
-            <label className="block text-sm text-slate-300 mt-4 mb-2">
-              Password
-            </label>
-            <div className="relative">
+          <form onSubmit={handleLoginClick} className="w-full space-y-5">
+            <div>
+              <label className="block text-sm text-slate-300 font-bold mb-2 uppercase tracking-wide">
+                Email Address
+              </label>
               <input
-                className="w-full h-10 rounded-full px-4 bg-transparent border border-slate-400/30 placeholder-slate-400 focus:bg-transparent focus:placeholder-slate-200 transition-colors duration-300"
-                type={showPassword ? "text" : "password"}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-5 py-4 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 rounded-2xl text-slate-200 text-base outline-none transition-all duration-300 placeholder:text-slate-600"
+                placeholder="you@example.com"
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 hover:bg-transparent transition-colors cursor-pointer"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </Button>
             </div>
 
-            <div className="flex justify-end mt-2">
-              <a
-                href="/forgot-password"
-                className="text-amber-400 text-sm hover:text-amber-300 transition-colors"
-              >
-                Forgot password?
-              </a>
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm text-slate-300 font-bold uppercase tracking-wide">
+                  Password
+                </label>
+                <a
+                  href="/reset-password"
+                  className="text-amber-500 text-sm hover:text-amber-400 transition-colors"
+                >
+                  Forgot Password?
+                </a>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-5 py-4 bg-slate-950 border border-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10 rounded-2xl text-slate-200 text-base outline-none transition-all duration-350 pr-12 placeholder:text-slate-600 font-mono"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <Button
@@ -175,11 +180,11 @@ const AuthPage = () => {
               size="lg"
               variant="outline"
               disabled={isRocketLaunching || isLoading}
-              className={`mt-4 min-w-md bg-transparent ml-9 border-amber-600 shadow-2xl border-2 shadow-amber-600/10 hover:bg-amber-600/10 hover:text-white text-lg relative overflow-hidden transition-all duration-300 group cursor-pointer ${
+              className={`mt-4 w-full bg-transparent border-amber-600 shadow-2xl border-2 shadow-amber-600/10 hover:bg-amber-600/10 hover:text-white text-lg relative overflow-hidden transition-all duration-300 group cursor-pointer ${
                 isRocketLaunching ? "glow-pulse" : ""
               }`}
             >
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 {isLoading ? "Logging in..." : "Log In"}
                 <Rocket
                   size={20}
@@ -211,4 +216,16 @@ const AuthPage = () => {
   );
 };
 
-export default AuthPage;
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+}

@@ -293,6 +293,8 @@ export const getUserDashboardStats = async (userId) => {
         totalResumesAnalyzed: data.totalResumesAnalyzed || 0,
         skills: data.latestResumeAnalysis?.skills || [],
         lastAnalyzedAt: data.latestResumeAnalysis?.analyzedAt || null,
+        plan: data.plan || "free",
+        billingCycle: data.billingCycle || "",
       };
     }
 
@@ -305,6 +307,8 @@ export const getUserDashboardStats = async (userId) => {
       totalResumesAnalyzed: 0,
       skills: [],
       lastAnalyzedAt: null,
+      plan: "free",
+      billingCycle: "",
     };
   } catch (error) {
     console.error("Error getting dashboard stats:", error);
@@ -325,10 +329,31 @@ export const initializeUserDocument = async (userId, email, name = "") => {
       savedJobsCount: 0,
       applicationsCount: 0,
       totalResumesAnalyzed: 0,
+      plan: "free",
+      billingCycle: "",
     });
     return { success: true };
   } catch (error) {
     console.error("Error initializing user document:", error);
+    throw error;
+  }
+};
+
+// Update user plan details after payment
+export const updateUserSubscription = async (userId, planData) => {
+  try {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      plan: planData.plan,
+      billingCycle: planData.billingCycle,
+      paymentId: planData.paymentId,
+      orderId: planData.orderId,
+      subscribedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating user subscription:", error);
     throw error;
   }
 };
