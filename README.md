@@ -196,23 +196,540 @@ graph LR
 
 ```mermaid
 graph TB
+
     subgraph Client["🌐 Client (Next.js App Router)"]
-        A[Landing Page] --> B[Auth Pages]
-        B --> C[Dashboard Layout]
-        C --> D[Career Coach]
-        C --> E[Resume Analysis]
-        C --> F[Job Matching]
-        C --> G[Profile & Billing]
+        A["Landing Page"] --> B["Authentication"]
+        B --> C["Dashboard"]
+
+        C --> D["AI Career Coach"]
+        C --> E["Resume Analysis"]
+        C --> F["Resume Refinement"]
+        C --> G["Job Matching"]
+        C --> H["Profile & Billing"]
     end
 
-    subgraph API["⚡ API Routes (Edge Runtime)"]
-        H[/api/ai-coach] --> I[Gemini API]
-        J[/api/parse-resume] --> K[PDF Parser + Gemini]
-        L[/api/resume-refine] --> I
-        M[/api/jobs] --> N[Job Matching Engine]
-        O[/api/create-order] --> P[Razorpay]
+    subgraph API["⚡ Next.js API Routes"]
+        I["/api/ai-coach"]
+        J["/api/parse-resume"]
+        K["/api/resume-refine"]
+        L["/api/jobs"]
+        M["/api/create-order"]
     end
 
-    subgraph Services["☁️ External Services"]
-        Q[Firebase Auth] --> R[Firestore DB]
-        S[Google GenAI] --> T[Gemini 1.5 Flash
+    subgraph AI["🤖 AI & Processing"]
+        N["Google Gemini API"]
+        O["Resume Parser"]
+        P["Job Matching Logic"]
+    end
+
+    subgraph Backend["☁️ Backend Services"]
+        Q["Firebase Authentication"]
+        R["Cloud Firestore"]
+    end
+
+    subgraph Payments["💳 Payment Gateway"]
+        S["Razorpay"]
+    end
+
+    D --> I
+    E --> J
+    F --> K
+    G --> L
+    H --> M
+
+    I --> N
+    J --> O
+    J --> N
+    K --> N
+    L --> P
+    L --> R
+    M --> S
+
+    Q --> R
+```
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Client as Next.js Client
+    participant API as API Routes
+    participant Gemini as Google Gemini
+    participant Firebase
+    participant Firestore
+    participant Razorpay
+
+    User->>Client: Login
+    Client->>Firebase: Authenticate
+    Firebase-->>Client: Session
+
+    User->>Client: Upload Resume
+    Client->>API: POST /api/parse-resume
+    API->>Gemini: Analyze Resume
+    Gemini-->>API: ATS Score & Suggestions
+    API->>Firestore: Save Analysis
+    API-->>Client: Results
+
+    User->>Client: Ask Career Question
+    Client->>API: POST /api/ai-coach
+    API->>Gemini: Generate Response
+    Gemini-->>API: Career Advice
+    API-->>Client: AI Response
+
+    User->>Client: Refine Resume
+    Client->>API: POST /api/resume-refine
+    API->>Gemini: Rewrite Resume
+    Gemini-->>API: Optimized Resume
+    API-->>Client: Updated Resume
+
+    User->>Client: Match Jobs
+    Client->>API: POST /api/jobs
+    API->>Firestore: Fetch Profile
+    Firestore-->>API: User Data
+    API-->>Client: Match Score & Recommendations
+
+    User->>Client: Upgrade Plan
+    Client->>API: POST /api/create-order
+    API->>Razorpay: Create Order
+    Razorpay-->>Client: Checkout Session
+```
+
+### Component Architecture
+
+```mermaid
+graph LR
+
+    A["Next.js 15 App Router"]
+
+    A --> B["Landing Pages"]
+    A --> C["Authentication"]
+    A --> D["Dashboard"]
+
+    D --> E["Career Coach"]
+    D --> F["Resume Analysis"]
+    D --> G["Resume Refinement"]
+    D --> H["Job Matching"]
+    D --> I["Billing"]
+
+    E --> J["Google Gemini"]
+    F --> J
+    G --> J
+
+    C --> K["Firebase Auth"]
+    D --> L["Cloud Firestore"]
+    I --> M["Razorpay"]
+```
+
+### Data Flow
+
+```mermaid
+flowchart LR
+
+    User --> UI["Next.js UI"]
+
+    UI --> Auth["Firebase Auth"]
+
+    UI --> API["API Routes"]
+
+    API --> Gemini["Google Gemini"]
+
+    API --> Firestore["Cloud Firestore"]
+
+    API --> Razorpay["Razorpay"]
+
+    Gemini --> API
+
+    Firestore --> API
+
+    API --> UI
+
+    UI --> User
+```
+
+### Architecture Highlights
+
+- **Next.js 15 App Router** powers the frontend using Server and Client Components.
+- **API Routes** handle AI processing, resume parsing, job matching, and payment requests.
+- **Google Gemini** provides AI-powered career coaching, resume analysis, and resume refinement.
+- **Firebase Authentication** secures user login and protected dashboard access.
+- **Cloud Firestore** stores user profiles, resume history, and application data.
+- **Razorpay** manages premium subscriptions and payment processing.
+- **Tailwind CSS + Framer Motion + Radix UI** provide a modern, responsive user experience.
+- **Modular architecture** separates UI, business logic, external integrations, and data storage for easier maintenance and scalability.
+
+
+### Architecture Highlights
+
+- **App Router** based routing with Server and Client Components
+- **API Routes** encapsulate all AI and payment operations
+- **Firebase Authentication** protects premium dashboard features
+- **Firestore** stores user profiles, history, and preferences
+- **Google Gemini** powers resume analysis, coaching, and refinement
+- **Razorpay** manages secure subscription payments
+- **Responsive UI** built with reusable components and Tailwind CSS
+
+---
+
+# 🚀 Quick Start
+
+## Prerequisites
+
+Before running the project, ensure you have installed:
+
+- Node.js **18+**
+- npm / pnpm / yarn
+- Firebase Project
+- Google AI Studio API Key
+- Razorpay Test Keys
+
+---
+
+## Clone Repository
+
+```bash
+git clone https://github.com/dharunkumar-sh/career-lens.git
+
+cd career-lens
+```
+
+---
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+or
+
+```bash
+pnpm install
+```
+
+---
+
+## Configure Environment Variables
+
+Create a `.env.local`
+
+```env
+# Firebase
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+
+# Google AI
+GOOGLE_AI_API_KEY=
+
+# Razorpay
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+```
+
+---
+
+## Start Development Server
+
+```bash
+npm run dev
+```
+
+Application will be available at
+
+```
+http://localhost:3000
+```
+
+---
+
+# ⚙️ Configuration
+
+## Firebase
+
+1. Create a Firebase project.
+2. Enable Authentication.
+3. Enable Firestore Database.
+4. Add localhost to Authorized Domains.
+
+---
+
+## Google Gemini
+
+1. Visit Google AI Studio.
+2. Generate an API Key.
+3. Add it to `.env.local`.
+
+---
+
+## Razorpay
+
+Create Test Keys
+
+```
+KEY_ID
+KEY_SECRET
+```
+
+Enable Webhooks for production deployments.
+
+---
+
+# 📁 Project Structure
+
+```text
+career-lens/
+│
+├── app/
+│   ├── api/
+│   ├── dashboard/
+│   ├── login/
+│   ├── signup/
+│   └── page.js
+│
+├── components/
+│   ├── ui/
+│   ├── dashboard/
+│   ├── landing/
+│   └── shared/
+│
+├── context/
+│
+├── hooks/
+│
+├── lib/
+│
+├── public/
+│
+├── styles/
+│
+├── utils/
+│
+├── firebase/
+│
+├── middleware.js
+│
+├── next.config.mjs
+│
+├── package.json
+│
+└── README.md
+```
+
+---
+
+# 🔌 API Reference
+
+## AI Career Coach
+
+```
+POST /api/ai-coach
+```
+
+Request
+
+```json
+{
+  "message":"How can I become a frontend developer?"
+}
+```
+
+Response
+
+```json
+{
+  "reply":"..."
+}
+```
+
+---
+
+## Resume Analysis
+
+```
+POST /api/parse-resume
+```
+
+Input
+
+- PDF Resume
+
+Output
+
+```json
+{
+  "score":87,
+  "feedback":[]
+}
+```
+
+---
+
+## Resume Refinement
+
+```
+POST /api/resume-refine
+```
+
+Returns improved resume content.
+
+---
+
+## Job Matching
+
+```
+POST /api/jobs
+```
+
+Returns
+
+- Match Score
+- Missing Skills
+- Suggestions
+
+---
+
+## Payment
+
+```
+POST /api/create-order
+```
+
+Creates Razorpay Order.
+
+---
+
+# 🤖 AI Capabilities
+
+Career Lens leverages **Google Gemini** for:
+
+- Resume parsing
+- Resume rewriting
+- ATS optimization
+- Career coaching
+- Interview preparation
+- Skill gap analysis
+- Job compatibility scoring
+- Personalized recommendations
+
+---
+
+# 💳 Payment Integration
+
+Premium plans are powered by Razorpay.
+
+### Features
+
+- Secure Checkout
+- Order Creation
+- Subscription Plans
+- Premium Dashboard Unlock
+- Test & Live Mode Support
+
+---
+
+# 🐳 Docker Deployment
+
+Build image
+
+```bash
+docker build -t career-lens .
+```
+
+Run
+
+```bash
+docker run -p 3000:3000 career-lens
+```
+
+---
+
+# 🧪 Development
+
+Run Development
+
+```bash
+npm run dev
+```
+
+Lint
+
+```bash
+npm run lint
+```
+
+Production Build
+
+```bash
+npm run build
+```
+
+Start Production
+
+```bash
+npm start
+```
+
+---
+
+# 📈 Future Roadmap
+
+- AI Interview Simulator
+- Resume Version Control
+- LinkedIn Profile Analyzer
+- Portfolio Review
+- AI Cover Letter Generator
+- Recruiter Dashboard
+- Company Insights
+- Analytics Dashboard
+- Mobile Application
+- Dark Mode
+
+---
+
+# 🤝 Contributing
+
+Contributions are welcome!
+
+1. Fork the repository
+
+2. Create a feature branch
+
+```bash
+git checkout -b feature/amazing-feature
+```
+
+3. Commit
+
+```bash
+git commit -m "Add amazing feature"
+```
+
+4. Push
+
+```bash
+git push origin feature/amazing-feature
+```
+
+5. Open a Pull Request
+
+---
+
+# 📄 License
+
+This project is licensed under the **MIT License**.
+
+---
+
+<div align="center">
+
+## ⭐ Show your support
+
+If you found this project helpful, consider giving it a ⭐ on GitHub.
+
+Made with ❤️ using **Next.js**, **Google Gemini**, **Firebase**, and **Razorpay**.
+
+</div>
