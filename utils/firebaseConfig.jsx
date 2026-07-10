@@ -9,6 +9,8 @@ import {
   sendEmailVerification,
   onAuthStateChanged,
   applyActionCode,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -55,6 +57,21 @@ export const signUp = async (email, password) => {
 
 export const logIn = async (email, password) => {
   return await signInWithEmailAndPassword(auth, email, password);
+};
+
+const googleProvider = new GoogleAuthProvider();
+
+export const signInWithGoogle = async () => {
+  const result = await signInWithPopup(auth, googleProvider);
+  const user = result.user;
+  
+  // Check if user doc exists in Firestore, if not initialize it
+  const userRef = doc(db, "users", user.uid);
+  const docSnap = await getDoc(userRef);
+  if (!docSnap.exists()) {
+    await initializeUserDocument(user.uid, user.email, user.displayName || "");
+  }
+  return result;
 };
 
 export const logOut = async () => {

@@ -160,10 +160,6 @@ const ForgotPasswordPage = () => {
               </div>
             </>
           )}
-
-          <div className="mt-6 text-base text-center text-slate-300">
-            🔒 Secure password reset. Your data stays private.
-          </div>
         </div>
       </div>
     </div>
