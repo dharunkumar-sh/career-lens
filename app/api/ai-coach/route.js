@@ -64,13 +64,10 @@ Please provide:
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "HTTP-Referer":
-            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-          "X-Title": "CareerLens AI Coach",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemma-3-27b-it:free",
+          model: "google/gemma-4-26b-a4b-it:free",
           messages: [
             {
               role: "system",
