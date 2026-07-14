@@ -435,10 +435,11 @@ export default function SkillGapRoadmapPage() {
             <span className="text-xs text-slate-500 hidden sm:inline">Click any transition to populate roles</span>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            {POPULAR_TRANSITIONS.map((transition) => {
+            {allTransitions.map((transition) => {
               const isSelected = currentRoleId === transition.from && targetRoleId === transition.to;
+              const isCustom = String(transition.id).startsWith("custom_");
               return (
-                <button
+                <div
                   key={transition.id}
                   onClick={() => handleSelectPresetTransition(transition)}
                   className={`px-3.5 py-2 rounded-xl text-xs font-medium border flex items-center gap-2 transition-all cursor-pointer ${
@@ -454,15 +455,49 @@ export default function SkillGapRoadmapPage() {
                         ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                         : transition.badge === "AI Boom"
                         ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                        : transition.badge === "My Preset"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
                         : "bg-slate-800 text-slate-300"
                     }`}
                   >
                     {transition.badge}
                   </span>
-                </button>
+                  {isCustom && (
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCustomTransition(transition.id, e)}
+                      className="ml-1 text-slate-500 hover:text-rose-400 font-bold text-xs"
+                      title="Delete Preset"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
+
+          {/* Form to Save Current Role -> Target Role as a Custom Preset */}
+          <form onSubmit={handleSaveCustomTransition} className="mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center gap-3">
+            <div className="text-xs text-slate-400 font-semibold shrink-0">
+              Save currently selected path as a preset:
+            </div>
+            <div className="flex gap-2 w-full">
+              <input
+                type="text"
+                value={newTransitionTitle}
+                onChange={(e) => setNewTransitionTitle(e.target.value)}
+                placeholder="Preset Name (e.g. My Cloud Transition)"
+                className="bg-black/60 border border-white/10 rounded-lg text-xs text-white px-3 py-2 w-full focus:outline-none focus:border-cyan-500"
+              />
+              <button
+                type="submit"
+                className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs px-4 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                + Save Preset
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Searchable Dropdowns & Selector Bar */}
@@ -491,7 +526,7 @@ export default function SkillGapRoadmapPage() {
                 <div>
                   <div className="text-white font-bold text-base">{gapAnalysis.currentRole.title}</div>
                   <div className="text-xs text-slate-400 mt-0.5">
-                    {gapAnalysis.currentRole.category} • Avg: {gapAnalysis.currentRole.avgSalary || "N/A"}
+                    {gapAnalysis.currentRole.category} • Avg: {formatSalary(gapAnalysis.currentRole.avgSalary)}
                   </div>
                 </div>
                 <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isCurrentOpen ? "rotate-180" : ""}`} />
@@ -529,7 +564,7 @@ export default function SkillGapRoadmapPage() {
                         <div>
                           <div className="text-sm font-medium">{role.title}</div>
                           <div className="text-xs text-slate-500">
-                            {role.category} • {role.skills?.length || 0} base skills
+                            {role.category} • Avg: {formatSalary(role.avgSalary)} • {role.skills?.length || 0} base skills
                           </div>
                         </div>
                         {currentRoleId === role.id && <CheckCircle2 className="w-4 h-4 text-cyan-400" />}
@@ -589,7 +624,7 @@ export default function SkillGapRoadmapPage() {
                 <div>
                   <div className="text-white font-bold text-base">{gapAnalysis.targetRole.title}</div>
                   <div className="text-xs text-slate-400 mt-0.5">
-                    {gapAnalysis.targetRole.category} • Avg: {gapAnalysis.targetRole.avgSalary || "N/A"} ({gapAnalysis.targetRole.demandLevel} Demand)
+                    {gapAnalysis.targetRole.category} • Avg: {formatSalary(gapAnalysis.targetRole.avgSalary)} ({gapAnalysis.targetRole.demandLevel} Demand)
                   </div>
                 </div>
                 <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isTargetOpen ? "rotate-180" : ""}`} />
@@ -627,7 +662,7 @@ export default function SkillGapRoadmapPage() {
                         <div>
                           <div className="text-sm font-medium">{role.title}</div>
                           <div className="text-xs text-slate-500">
-                            {role.category} • {role.avgSalary} ({role.demandLevel})
+                            {role.category} • Avg: {formatSalary(role.avgSalary)} ({role.demandLevel})
                           </div>
                         </div>
                         {targetRoleId === role.id && <CheckCircle2 className="w-4 h-4 text-amber-400" />}
