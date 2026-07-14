@@ -326,6 +326,7 @@ export default function SkillGapRoadmapPage() {
       if (data.source) setAiSource(data.source);
       toast.success("AI Transition Advice Generated successfully!");
     } catch (err) {
+      if (err.name === "AbortError") return;
       console.error("AI Generation error:", err);
       toast.error("Failed to generate AI advice. Check network.");
     } finally {

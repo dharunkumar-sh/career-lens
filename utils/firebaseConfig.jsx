@@ -26,6 +26,7 @@ import {
   limit,
   getDocs,
   serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -88,12 +89,12 @@ export const resendVerificationEmail = async (user) => {
 
 // ============ FIRESTORE DATABASE FUNCTIONS ============
 
-// Save or update user profile
+// Save or update user profile details in 'profiles' collection
 export const saveUserProfile = async (userId, profileData) => {
   try {
-    const userRef = doc(db, "users", userId);
+    const profileRef = doc(db, "profiles", userId);
     await setDoc(
-      userRef,
+      profileRef,
       {
         ...profileData,
         updatedAt: serverTimestamp(),
@@ -107,11 +108,11 @@ export const saveUserProfile = async (userId, profileData) => {
   }
 };
 
-// Get user profile
+// Get user profile details from 'profiles' collection
 export const getUserProfile = async (userId) => {
   try {
-    const userRef = doc(db, "users", userId);
-    const docSnap = await getDoc(userRef);
+    const profileRef = doc(db, "profiles", userId);
+    const docSnap = await getDoc(profileRef);
     if (docSnap.exists()) {
       return docSnap.data();
     }
@@ -120,6 +121,20 @@ export const getUserProfile = async (userId) => {
     console.error("Error getting user profile:", error);
     throw error;
   }
+};
+
+// Real-time listener for user profile details in 'profiles' collection
+export const syncUserProfile = (userId, callback) => {
+  const profileRef = doc(db, "profiles", userId);
+  return onSnapshot(profileRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data());
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error("Error syncing profile:", error);
+  });
 };
 
 // Save resume analysis result

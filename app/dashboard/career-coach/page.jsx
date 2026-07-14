@@ -81,6 +81,7 @@ export default function AICareerCoachPage() {
       setGeneratedContent(data.content);
       toast.success("Generated successfully!");
     } catch (error) {
+      if (error.name === "AbortError") return;
       console.error(error);
       toast.error(error.message);
     } finally {

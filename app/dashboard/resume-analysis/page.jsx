@@ -95,6 +95,7 @@ export default function ResumeAnalysisPage() {
         toast.success("Resume analyzed successfully!");
       }
     } catch (err) {
+      if (err.name === "AbortError") return;
       console.error("Analysis error:", err);
       setError(err.message);
       toast.error(err.message || "Failed to analyze resume");

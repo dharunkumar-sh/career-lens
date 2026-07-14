@@ -108,6 +108,7 @@ export default function JobMatchingPage() {
 
   // Fetch job title suggestions
   useEffect(() => {
+    const controller = new AbortController();
     const fetchJobSuggestions = async () => {
       if (searchQuery.length < 2) {
         setJobSuggestions([]);
@@ -116,23 +117,30 @@ export default function JobMatchingPage() {
 
       try {
         const response = await fetch(
-          `/api/jobs?autocomplete=job&query=${encodeURIComponent(searchQuery)}`
+          `/api/jobs?autocomplete=job&query=${encodeURIComponent(searchQuery)}`,
+          { signal: controller.signal }
         );
         const data = await response.json();
         if (data.success) {
           setJobSuggestions(data.suggestions || []);
         }
       } catch (error) {
-        console.error("Job suggestions error:", error);
+        if (error.name !== "AbortError") {
+          console.error("Job suggestions error:", error);
+        }
       }
     };
 
     const debounceTimer = setTimeout(fetchJobSuggestions, 200);
-    return () => clearTimeout(debounceTimer);
+    return () => {
+      clearTimeout(debounceTimer);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   // Fetch location suggestions
   useEffect(() => {
+    const controller = new AbortController();
     const fetchLocationSuggestions = async () => {
       if (location.length < 2) {
         setLocationSuggestions([]);
@@ -143,19 +151,25 @@ export default function JobMatchingPage() {
         const response = await fetch(
           `/api/jobs?autocomplete=location&query=${encodeURIComponent(
             location
-          )}`
+          )}`,
+          { signal: controller.signal }
         );
         const data = await response.json();
         if (data.success) {
           setLocationSuggestions(data.suggestions || []);
         }
       } catch (error) {
-        console.error("Location suggestions error:", error);
+        if (error.name !== "AbortError") {
+          console.error("Location suggestions error:", error);
+        }
       }
     };
 
     const debounceTimer = setTimeout(fetchLocationSuggestions, 200);
-    return () => clearTimeout(debounceTimer);
+    return () => {
+      clearTimeout(debounceTimer);
+      controller.abort();
+    };
   }, [location]);
 
   // Search jobs
@@ -199,6 +213,7 @@ export default function JobMatchingPage() {
         }
       }
     } catch (error) {
+      if (error.name === "AbortError") return;
       console.error("Search error:", error);
       toast.error("Failed to search jobs");
     } finally {
@@ -232,6 +247,7 @@ export default function JobMatchingPage() {
         toast.success(`Found ${data.jobs.length} jobs matching your skills!`);
       }
     } catch (error) {
+      if (error.name === "AbortError") return;
       console.error("Suggestion error:", error);
       toast.error("Failed to get job suggestions");
     } finally {

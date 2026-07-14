@@ -80,19 +80,13 @@ export default function DashboardLayout({ children }) {
       href: "/dashboard/career-coach",
       icon: Sparkles,
       color: "text-purple-400"
-    },
-    {
-      name: "My Profile",
-      href: "/dashboard/profile",
-      icon: User,
-      color: "text-pink-400"
     }
   ];
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-black/35 backdrop-blur-xl border-r border-white/10 text-slate-300">
+    <div className="flex flex-col h-full bg-slate-950/40 backdrop-blur-xl border-r border-white/10 text-slate-300 shadow-[inset_-1px_0_0_rgba(255,255,255,0.03),0_0_30px_rgba(0,0,0,0.4)]">
       {/* Brand Logo */}
-      <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 shrink-0">
+      <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 shrink-0 bg-white/1">
         <Link href="/" className="flex items-center gap-3">
           <Image
             src="/logo.svg"
@@ -103,7 +97,7 @@ export default function DashboardLayout({ children }) {
           />
         </Link>
         {isMobileOpen && (
-          <button 
+          <button
             onClick={() => setIsMobileOpen(false)}
             className="p-1 rounded-lg bg-white/5 border border-white/15 text-slate-400 hover:text-white"
           >
@@ -118,7 +112,7 @@ export default function DashboardLayout({ children }) {
         <Link
           href="/dashboard"
           onClick={() => setIsMobileOpen(false)}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative cursor-pointer ${
             pathname === "/dashboard"
               ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 shadow-md shadow-cyan-950/20 font-semibold"
               : "hover:bg-white/5 text-slate-400 hover:text-slate-200 border border-transparent"
@@ -127,7 +121,9 @@ export default function DashboardLayout({ children }) {
           {pathname === "/dashboard" && (
             <div className="absolute left-0 top-3 bottom-3 w-1 bg-cyan-400 rounded-r" />
           )}
-          <LayoutDashboard className={`w-5 h-5 transition-transform group-hover:scale-110 ${pathname === "/dashboard" ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-300"}`} />
+          <LayoutDashboard
+            className={`w-5 h-5 transition-transform group-hover:scale-110 ${pathname === "/dashboard" ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-300"}`}
+          />
           <span>Dashboard</span>
         </Link>
 
@@ -135,8 +131,8 @@ export default function DashboardLayout({ children }) {
         <div>
           <button
             onClick={() => setIsFeaturesOpen(!isFeaturesOpen)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
-              featureItems.some(item => pathname.startsWith(item.href))
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group cursor-pointer ${
+              featureItems.some((item) => pathname.startsWith(item.href))
                 ? "text-slate-200 font-semibold"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
             }`}
@@ -163,13 +159,15 @@ export default function DashboardLayout({ children }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 group relative ${
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] transition-all duration-200 group relative cursor-pointer ${
                       isActive
                         ? "bg-white/5 text-white border-l-2 border-cyan-400 font-medium"
                         : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                     }`}
                   >
-                    <IconComponent className={`w-4 h-4 transition-transform group-hover:scale-110 ${isActive ? item.color : "text-slate-400 group-hover:text-slate-300"}`} />
+                    <IconComponent
+                      className={`w-4 h-4 transition-transform group-hover:scale-110 ${isActive ? item.color : "text-slate-400 group-hover:text-slate-300"}`}
+                    />
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -178,11 +176,30 @@ export default function DashboardLayout({ children }) {
           )}
         </div>
 
+        {/* My Profile Link */}
+        <Link
+          href="/dashboard/profile"
+          onClick={() => setIsMobileOpen(false)}
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative cursor-pointer ${
+            pathname === "/dashboard/profile"
+              ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 shadow-md shadow-cyan-950/20 font-semibold"
+              : "hover:bg-white/5 text-slate-400 hover:text-slate-200 border border-transparent"
+          }`}
+        >
+          {pathname === "/dashboard/profile" && (
+            <div className="absolute left-0 top-3 bottom-3 w-1 bg-cyan-400 rounded-r" />
+          )}
+          <User
+            className={`w-5 h-5 transition-transform group-hover:scale-110 ${pathname === "/dashboard/profile" ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-300"}`}
+          />
+          <span>My Profile</span>
+        </Link>
+
         {/* History Link */}
         <Link
           href="/dashboard/history"
           onClick={() => setIsMobileOpen(false)}
-          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+          className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative cursor-pointer ${
             pathname === "/dashboard/history"
               ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 shadow-md shadow-cyan-950/20 font-semibold"
               : "hover:bg-white/5 text-slate-400 hover:text-slate-200 border border-transparent"
@@ -191,16 +208,18 @@ export default function DashboardLayout({ children }) {
           {pathname === "/dashboard/history" && (
             <div className="absolute left-0 top-3 bottom-3 w-1 bg-cyan-400 rounded-r" />
           )}
-          <History className={`w-5 h-5 transition-transform group-hover:scale-110 ${pathname === "/dashboard/history" ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-300"}`} />
+          <History
+            className={`w-5 h-5 transition-transform group-hover:scale-110 ${pathname === "/dashboard/history" ? "text-cyan-400" : "text-slate-400 group-hover:text-slate-300"}`}
+          />
           <span>History</span>
         </Link>
       </nav>
 
       {/* Sidebar Footer */}
-      <div className="p-4 border-t border-white/10 bg-slate-950/40">
+      <div className="p-4 border-t border-white/10 bg-slate-950/20">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 bg-red-500/10  border border-transparent  hover:font-medium hover:border-red-600 transition-all duration-200 cursor-pointer"
         >
           <LogOut className="w-5 h-5" />
           <span>Sign Out</span>
@@ -257,7 +276,7 @@ export default function DashboardLayout({ children }) {
         </header>
 
         {/* Content Page wrapper */}
-        <div className="flex-grow">
+        <div className="grow">
           {children}
         </div>
       </div>
