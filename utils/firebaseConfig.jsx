@@ -66,6 +66,38 @@ export const signInWithGoogle = async () => {
   if (!docSnap.exists()) {
     await initializeUserDocument(user.uid, user.email, user.displayName || "");
   }
+
+  const profileRef = doc(db, "profiles", user.uid);
+  const profileSnap = await getDoc(profileRef);
+  if (!profileSnap.exists()) {
+    await setDoc(profileRef, {
+      name: user.displayName || "",
+      email: user.email || "",
+      photoURL: user.photoURL || "",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    const profileData = profileSnap.data();
+    if (!profileData.photoURL && user.photoURL) {
+      await updateDoc(profileRef, {
+        photoURL: user.photoURL,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
+  if (user.photoURL) {
+    await setDoc(
+      userRef,
+      {
+        photoURL: user.photoURL,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
   return result;
 };
 
