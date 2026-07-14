@@ -293,6 +293,33 @@ export const trackJobApplication = async (userId, jobData) => {
   }
 };
 
+// Get all tracked job applications
+export const getJobApplications = async (userId) => {
+  try {
+    const applicationsRef = collection(db, "users", userId, "applications");
+    const q = query(applicationsRef, orderBy("appliedAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error getting job applications:", error);
+    return [];
+  }
+};
+
+// Get all resume analyses history
+export const getResumeAnalyses = async (userId) => {
+  try {
+    const analysesRef = collection(db, "users", userId, "resumeAnalyses");
+    const q = query(analysesRef, orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error getting resume analyses:", error);
+    return [];
+  }
+};
+
+
 // Get user dashboard stats
 export const getUserDashboardStats = async (userId) => {
   try {

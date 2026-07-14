@@ -3,8 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import ProfileDropdown from "@/components/ui/profile-dropdown";
-import { getUserDashboardStats } from "@/utils/firebaseConfig";
+import { getUserDashboardStats, getLatestResumeAnalysis } from "@/utils/firebaseConfig";
 import {
   Briefcase,
   TrendingUp,
@@ -15,6 +14,12 @@ import {
   BarChart3,
   Sparkles,
   Compass,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  ArrowRight,
+  UserCheck,
+  Award
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -32,6 +37,7 @@ export default function DashboardPage() {
     skills: [],
     lastAnalyzedAt: null,
   });
+  const [latestAnalysis, setLatestAnalysis] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
   // Redirect to login if not authenticated
@@ -41,13 +47,17 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  // Fetch user stats from Firestore
+  // Fetch user stats & latest analysis from Firestore
   useEffect(() => {
     const fetchStats = async () => {
       if (user?.uid) {
         try {
-          const userStats = await getUserDashboardStats(user.uid);
+          const [userStats, analysis] = await Promise.all([
+            getUserDashboardStats(user.uid),
+            getLatestResumeAnalysis(user.uid)
+          ]);
           setStats(userStats);
+          setLatestAnalysis(analysis);
         } catch (error) {
           console.error("Error fetching stats:", error);
         } finally {
@@ -84,284 +94,275 @@ export default function DashboardPage() {
   };
 
   return (
-    <div
-      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
-      }}
-    >
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-        <div className="mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Image
-                src="/logo.svg"
-                alt="Project Logo"
-                width={160}
-                height={160}
-              />
-            </Link>
-          </div>
-          <ProfileDropdown />
+    <main className="max-w-7xl mx-auto px-6 py-12">
+      {/* Welcome Section */}
+      <div className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Welcome back,{" "}
+            <span className="text-amber-500">
+              {stats.name || user?.email?.split("@")[0]}
+            </span>
+            ! 👋
+          </h2>
+          <p className="text-slate-400">
+            Real-time insights and tracker for your career advancement.
+          </p>
         </div>
-      </header>
+        <div className="self-start md:self-auto flex items-center gap-2.5 px-4.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-lg backdrop-blur-md">
+          <span className="text-slate-400 text-sm">Account Plan:</span>
+          {loadingStats ? (
+            <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+          ) : stats.plan === "pro" ? (
+            <span className="text-amber-500 text-sm font-extrabold flex items-center gap-1.5 animate-pulse">
+              <Sparkles className="w-4 h-4" /> Career Pro ({stats.billingCycle === "yearly" ? "Annual" : "Monthly"})
+            </span>
+          ) : (
+            <span className="text-slate-300 text-sm font-bold">Free Explorer</span>
+          )}
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* Welcome Section */}
-        <div className="mb-12 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold text-white mb-2">
-              Welcome back,{" "}
-              <span className="text-amber-600">
-                {stats.name || user?.email?.split("@")[0]}
-              </span>
-              ! 👋
-            </h2>
-            <p className="text-slate-400">
-              Manage your career profile and track your progress
+      {/* Stats Section */}
+      <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-5 h-5 text-cyan-400" />
+            <p className="text-slate-400 text-sm font-medium">Resume Score</p>
+          </div>
+          {loadingStats ? (
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          ) : (
+            <p className={`text-4xl font-extrabold ${getScoreColor(stats.resumeScore)}`}>
+              {stats.resumeScore > 0 ? `${stats.resumeScore}%` : "—"}
             </p>
-          </div>
-          <div className="self-start md:self-auto flex items-center gap-2.5 px-4.5 py-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-lg backdrop-blur-md">
-            <span className="text-slate-400 text-sm">Account Plan:</span>
-            {loadingStats ? (
-              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
-            ) : stats.plan === "pro" ? (
-              <span className="text-amber-500 text-sm font-extrabold flex items-center gap-1.5 animate-pulse">
-                <Sparkles className="w-4 h-4" /> Career Pro ({stats.billingCycle === "yearly" ? "Annual" : "Monthly"})
-              </span>
-            ) : (
-              <span className="text-slate-300 text-sm font-bold">Free Explorer</span>
-            )}
-          </div>
+          )}
+          {stats.lastAnalyzedAt && (
+            <p className="text-[10px] text-slate-500 mt-1">
+              Last analyzed: {new Date(stats.lastAnalyzedAt).toLocaleDateString()}
+            </p>
+          )}
         </div>
 
-        {/* Stats Section */}
-        <div className="mb-12 grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <p className="text-slate-400 text-sm">Resume Score</p>
-            </div>
-            {loadingStats ? (
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-            ) : (
-              <p
-                className={`text-3xl font-bold ${getScoreColor(
-                  stats.resumeScore,
-                )}`}
-              >
-                {stats.resumeScore > 0 ? `${stats.resumeScore}%` : "—"}
-              </p>
-            )}
-            {stats.lastAnalyzedAt && (
-              <p className="text-xs text-slate-500 mt-1">
-                Last analyzed:{" "}
-                {new Date(stats.lastAnalyzedAt).toLocaleDateString()}
-              </p>
-            )}
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-amber-500/30 transition-all shadow-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Bookmark className="w-5 h-5 text-amber-400" />
+            <p className="text-slate-400 text-sm font-medium">Saved Jobs</p>
           </div>
-
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-amber-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Bookmark className="w-4 h-4 text-amber-400" />
-              <p className="text-slate-400 text-sm">Saved Jobs</p>
-            </div>
-            {loadingStats ? (
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-            ) : (
-              <p className="text-3xl font-bold text-white">
-                {stats.savedJobsCount}
-              </p>
-            )}
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-green-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Send className="w-4 h-4 text-green-400" />
-              <p className="text-slate-400 text-sm">Applications</p>
-            </div>
-            {loadingStats ? (
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-            ) : (
-              <p className="text-3xl font-bold text-white">
-                {stats.applicationsCount}
-              </p>
-            )}
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-blue-400" />
-              <p className="text-slate-400 text-sm">Resumes Analyzed</p>
-            </div>
-            {loadingStats ? (
-              <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
-            ) : (
-              <p className="text-3xl font-bold text-white">
-                {stats.totalResumesAnalyzed}
-              </p>
-            )}
-          </div>
+          {loadingStats ? (
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          ) : (
+            <p className="text-4xl font-extrabold text-white">{stats.savedJobsCount}</p>
+          )}
         </div>
 
-        {/* Skills Preview */}
-        {stats.skills.length > 0 && (
-          <div className="mb-12 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 transition-all shadow-lg">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Your Top Skills
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-green-500/30 transition-all shadow-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <Send className="w-5 h-5 text-green-400" />
+            <p className="text-slate-400 text-sm font-medium">Applications</p>
+          </div>
+          {loadingStats ? (
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          ) : (
+            <p className="text-4xl font-extrabold text-white">{stats.applicationsCount}</p>
+          )}
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-blue-500/30 transition-all shadow-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-5 h-5 text-blue-400" />
+            <p className="text-slate-400 text-sm font-medium">Resumes Analyzed</p>
+          </div>
+          {loadingStats ? (
+            <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          ) : (
+            <p className="text-4xl font-extrabold text-white">{stats.totalResumesAnalyzed}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Interactive Dashboard Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Widget 1: Radial Score & Next Steps */}
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Award className="w-5 h-5 text-cyan-400" />
+              <span>Resume Standing</span>
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {stats.skills.slice(0, 10).map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-cyan-500/10 text-cyan-400 rounded-full text-sm border border-cyan-500/20"
+
+            {stats.resumeScore > 0 ? (
+              <div className="flex flex-col items-center py-4">
+                {/* Radial progress ring wrapper */}
+                <div className="relative w-40 h-40 flex items-center justify-center mb-6">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="68"
+                      className="stroke-white/5"
+                      strokeWidth="10"
+                      fill="transparent"
+                    />
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="68"
+                      className={`stroke-current ${
+                        stats.resumeScore >= 80 
+                          ? "text-emerald-500" 
+                          : stats.resumeScore >= 60 
+                            ? "text-cyan-500" 
+                            : "text-amber-500"
+                      }`}
+                      strokeWidth="10"
+                      fill="transparent"
+                      strokeDasharray={427.2}
+                      strokeDashoffset={427.2 - (427.2 * stats.resumeScore) / 100}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center justify-center">
+                    <span className="text-4xl font-extrabold text-white">{stats.resumeScore}%</span>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 mt-0.5">ATS Score</span>
+                  </div>
+                </div>
+
+                <div className="text-center px-2">
+                  <h4 className="text-lg font-bold text-white mb-2">
+                    {stats.resumeScore >= 80 ? "Superb Standing!" : stats.resumeScore >= 60 ? "Good Progress" : "Needs Upgrades"}
+                  </h4>
+                  <p className="text-sm text-slate-400 leading-relaxed">
+                    {stats.resumeScore >= 80 
+                      ? "Your resume is in the top 10% of candidates. You are ready to apply for matching roles." 
+                      : stats.resumeScore >= 60 
+                        ? "You are very close to standard ATS thresholds. Add a few missing key skills to stand out." 
+                        : "Upload a version containing richer descriptions of projects and skills to rank higher."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center py-10 text-center">
+                <FileText className="w-16 h-16 text-slate-600 mb-4 stroke-1" />
+                <p className="text-slate-400 text-sm mb-6">No resume score available. Upload your resume to begin analyzing.</p>
+                <Link
+                  href="/dashboard/resume-analysis"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-medium transition-all"
                 >
-                  {skill}
-                </span>
-              ))}
-              {stats.skills.length > 10 && (
-                <span className="px-3 py-1 bg-slate-700/50 text-slate-400 rounded-full text-sm">
-                  +{stats.skills.length - 10} more
+                  Analyze Resume
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {stats.resumeScore > 0 && (
+            <div className="mt-6 pt-6 border-t border-white/5 flex gap-2">
+              <Link
+                href="/dashboard/resume-analysis"
+                className="w-full text-center py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 hover:text-white rounded-xl text-sm transition-all"
+              >
+                Re-Analyze
+              </Link>
+              <Link
+                href="/dashboard/skill-gap"
+                className="w-full text-center py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-semibold transition-all"
+              >
+                View Skill Gap
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Widget 2: Real-time Skills Pool */}
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-xl flex flex-col justify-between lg:col-span-2">
+          <div>
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-emerald-400" />
+                <span>Skills Analysis</span>
+              </div>
+              {latestAnalysis?.targetRole && (
+                <span className="text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 rounded-full font-medium">
+                  Target: {latestAnalysis.targetRole}
                 </span>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {/* Skill Gap Roadmap Card */}
-          <div className="bg-linear-to-br from-cyan-950/40 via-white/5 to-white/5 backdrop-blur-md border border-cyan-500/30 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-400 transition-all shadow-xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl -mr-6 -mt-6 group-hover:bg-cyan-500/20 transition-all" />
-            <div className="flex items-center gap-3 mb-4 relative z-10">
-              <div className="w-12 h-12 bg-linear-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-cyan-500/20">
-                <Compass className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  Skill Gap Roadmap
-                </h3>
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">AI Powered</span>
-              </div>
-            </div>
-            <p className="text-slate-300 text-sm mb-4 relative z-10 leading-relaxed">
-              Compare current vs target role, track missing skills, and get personalized AI transition advice
-            </p>
-            <Link
-              href="/dashboard/skill-gap"
-              className="w-full px-4 py-2 bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg font-bold transition-all block text-center cursor-pointer shadow-lg shadow-cyan-500/20 relative z-10"
-            >
-              Analyze Skill Gap
-            </Link>
-          </div>
-
-          {/* Resume Analysis Card */}
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/50 transition-all shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-blue-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">
-                Resume Analysis
-              </h3>
-            </div>
-            <p className="text-slate-400 mb-4">
-              Analyze your resume to identify skill gaps and get improvement
-              suggestions
-            </p>
-            <Link
-              href="/dashboard/resume-analysis"
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
-            >
-              {stats.totalResumesAnalyzed > 0
-                ? "Analyze Again"
-                : "Analyze Resume"}
-            </Link>
-          </div>
-
-          {/* Job Matching Card */}
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-cyan-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">Job Matching</h3>
-            </div>
-            <p className="text-slate-400 mb-4">
-              Find jobs that match your profile and skills perfectly
-            </p>
-            <Link
-              href="/dashboard/job-matching"
-              className="w-full px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
-            >
-              Explore Jobs
-            </Link>
-          </div>
-
-          {/* Profile Card */}
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-green-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-green-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">My Profile</h3>
-            </div>
-            <p className="text-slate-400 mb-4">
-              Update your profile information and preferences
-            </p>
-            <Link
-              href="/dashboard/profile"
-              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
-            >
-              Edit Profile
-            </Link>
-          </div>
-
-          {/* AI Career Coach Card */}
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-purple-500/30 transition-all shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-purple-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-white">
-                AI Career Coach
-              </h3>
-            </div>
-            <p className="text-slate-400 mb-4">
-              Get AI-powered cover letters and personalized interview prep
-            </p>
-            <Link
-              href="/dashboard/career-coach"
-              className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors block text-center cursor-pointer"
-            >
-              Open Assistant
-            </Link>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        {stats.resumeScore === 0 && (
-          <div className="mt-12 bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-500/30 transition-all shadow-lg">
-            <h3 className="text-lg font-semibold text-white mb-2">
-              Get Started
             </h3>
-            <p className="text-slate-400 mb-4">
-              Upload your resume to get personalized job recommendations and
-              career insights.
-            </p>
-            <Link
-              href="/dashboard/resume-analysis"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors cursor-pointer"
-            >
-              <FileText className="w-4 h-4" />
-              Upload Resume
-            </Link>
+
+            {stats.skills.length > 0 || (latestAnalysis?.skills?.missing && latestAnalysis.skills.missing.length > 0) ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Present Skills */}
+                <div>
+                  <h4 className="text-base font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Active Skills ({stats.skills.length})</span>
+                  </h4>
+                  <div className="flex flex-wrap gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                    {stats.skills.map((skill, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs border border-emerald-500/20 font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Missing Skills */}
+                <div>
+                  <h4 className="text-base font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>Missing Skills ({latestAnalysis?.skills?.missing?.length || 0})</span>
+                  </h4>
+                  {latestAnalysis?.skills?.missing && latestAnalysis.skills.missing.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                      {latestAnalysis.skills.missing.map((skill, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1.5 bg-amber-500/10 text-amber-400 rounded-lg text-xs border border-amber-500/20 font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic mt-2">
+                      {latestAnalysis ? "No missing skills identified for your target role! You are fully aligned." : "Analyze a target role in Skill Gap to identify missing skills."}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center">
+                <Compass className="w-16 h-16 text-slate-600 mb-4 mx-auto stroke-1" />
+                <p className="text-slate-400 text-sm mb-6">No skills data available. Complete a transition plan or upload a resume.</p>
+                <Link
+                  href="/dashboard/skill-gap"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-medium transition-all"
+                >
+                  Create Transition Plan
+                </Link>
+              </div>
+            )}
           </div>
-        )}
-      </main>
-    </div>
+
+          {stats.skills.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                Data synced from your latest resume profile.
+              </p>
+              <Link
+                href="/dashboard/skill-gap"
+                className="text-sm text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 group"
+              >
+                <span>Full Skill Mapping</span>
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }

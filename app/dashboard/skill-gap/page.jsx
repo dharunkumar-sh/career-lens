@@ -345,37 +345,24 @@ export default function SkillGapRoadmapPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed text-white"
-      style={{
-        backgroundImage: "linear-gradient(rgba(2,6,23,0.85), rgba(2,6,23,0.95)), url('/dashboard-bg.jpg')",
-      }}
-    >
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-50">
-        <div className="mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-2 text-sm font-medium"
-            >
-              <ArrowLeft className="w-4 h-4 text-cyan-400" />
-              <span>Dashboard</span>
-            </Link>
-            <div className="h-6 w-px bg-white/10 hidden sm:block" />
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-linear-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <Compass className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="font-bold text-lg leading-tight text-transparent bg-clip-text bg-linear-to-r from-white via-slate-100 to-slate-400">
-                  Role & Skill Gap Analyzer
-                </h1>
-                <p className="text-xs text-cyan-400 font-medium">AI-Powered Career Roadmap Engine</p>
-              </div>
+    <div className="min-h-screen text-white">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-10">
+        {/* Page Actions & Title Row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-linear-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/20">
+              <Compass className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight text-transparent bg-clip-text bg-linear-to-r from-white via-slate-100 to-slate-400">
+                Role & Skill Gap Analyzer
+              </h1>
+              <p className="text-xs text-cyan-400 font-medium">AI-Powered Career Roadmap Engine</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+
+          <div className="flex flex-wrap items-center gap-3">
             {/* Currency Selector */}
             <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs gap-1">
               <button
@@ -409,22 +396,17 @@ export default function SkillGapRoadmapPage() {
               className="px-3.5 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm font-medium flex items-center gap-2 transition-all cursor-pointer shadow-md"
             >
               <Save className="w-4 h-4" />
-              <span className="hidden md:inline">Save Roadmap</span>
+              <span>Save Roadmap</span>
             </button>
             <button
               onClick={handleExportMarkdown}
               className="px-3.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg text-sm font-medium flex items-center gap-2 transition-all cursor-pointer shadow-md"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden md:inline">Export MD</span>
+              <span>Export MD</span>
             </button>
-            <ProfileDropdown />
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Popular Transitions Quick Select */}
         <div className="mb-8 bg-white/5 border border-white/10 rounded-2xl p-5 backdrop-blur-md shadow-xl">
           <div className="flex items-center justify-between mb-3.5">

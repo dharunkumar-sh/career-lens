@@ -152,30 +152,7 @@ export default function ResumeAnalysisPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
-      }}
-    >
-      {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-        <div className="mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/">
-              <Image
-                src="/logo.svg"
-                alt="Project Logo"
-                width={160}
-                height={160}
-              />
-            </Link>
-          </div>
-          <ProfileDropdown />
-        </div>
-      </header>
-
+    <div className="min-h-screen">
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
         {/* Back Button */}

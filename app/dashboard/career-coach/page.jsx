@@ -162,22 +162,7 @@ export default function AICareerCoachPage() {
   if (loading || !isAuthenticated) return null;
 
   return (
-    <div
-      className="min-h-screen bg-slate-950 bg-cover bg-center bg-fixed"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), url('/dashboard-bg.jpg')",
-      }}
-    >
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-        <div className="mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/">
-            <Image src="/logo.svg" alt="Logo" width={160} height={160} />
-          </Link>
-          <ProfileDropdown />
-        </div>
-      </header>
-
+    <div className="min-h-screen">
       <main className="max-w-7xl mx-auto px-6 py-12">
         <Link
           href="/dashboard"
