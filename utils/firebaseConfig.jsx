@@ -1,4 +1,3 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -29,7 +28,6 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDBR0NzEwQOoMVwVVZTxCxjPHt6T4tDTu8",
   authDomain: "career-lens-guide.firebaseapp.com",
@@ -39,19 +37,16 @@ const firebaseConfig = {
   appId: "1:394447731286:web:91c97755345af2385b19f7",
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Auth helper functions
 export const signUp = async (email, password) => {
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     email,
     password
   );
-  // Send email verification
   await sendEmailVerification(userCredential.user);
   return userCredential;
 };
@@ -66,7 +61,6 @@ export const signInWithGoogle = async () => {
   const result = await signInWithPopup(auth, googleProvider);
   const user = result.user;
   
-  // Check if user doc exists in Firestore, if not initialize it
   const userRef = doc(db, "users", user.uid);
   const docSnap = await getDoc(userRef);
   if (!docSnap.exists()) {
@@ -87,9 +81,6 @@ export const resendVerificationEmail = async (user) => {
   return await sendEmailVerification(user);
 };
 
-// ============ FIRESTORE DATABASE FUNCTIONS ============
-
-// Save or update user profile details in 'profiles' collection
 export const saveUserProfile = async (userId, profileData) => {
   try {
     const profileRef = doc(db, "profiles", userId);
@@ -101,6 +92,21 @@ export const saveUserProfile = async (userId, profileData) => {
       },
       { merge: true }
     );
+
+    const userRef = doc(db, "users", userId);
+    await setDoc(
+      userRef,
+      {
+        name: profileData.name || "",
+        email: profileData.email || "",
+        phone: profileData.phone || "",
+        dob: profileData.dob || "",
+        photoURL: profileData.photoURL || "",
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     return { success: true };
   } catch (error) {
     console.error("Error saving user profile:", error);
@@ -108,7 +114,6 @@ export const saveUserProfile = async (userId, profileData) => {
   }
 };
 
-// Get user profile details from 'profiles' collection
 export const getUserProfile = async (userId) => {
   try {
     const profileRef = doc(db, "profiles", userId);
@@ -123,7 +128,6 @@ export const getUserProfile = async (userId) => {
   }
 };
 
-// Real-time listener for user profile details in 'profiles' collection
 export const syncUserProfile = (userId, callback) => {
   const profileRef = doc(db, "profiles", userId);
   return onSnapshot(profileRef, (docSnap) => {
@@ -137,19 +141,15 @@ export const syncUserProfile = (userId, callback) => {
   });
 };
 
-// Save resume analysis result
 export const saveResumeAnalysis = async (userId, analysisData) => {
   try {
     const userRef = doc(db, "users", userId);
-
-    // Save to user's resume analyses subcollection
     const analysesRef = collection(db, "users", userId, "resumeAnalyses");
     const analysisDoc = await addDoc(analysesRef, {
       ...analysisData,
       createdAt: serverTimestamp(),
     });
 
-    // Update the user document with latest analysis summary
     await updateDoc(userRef, {
       latestResumeScore: analysisData.score || 0,
       latestResumeAnalysis: {
@@ -168,7 +168,6 @@ export const saveResumeAnalysis = async (userId, analysisData) => {
   }
 };
 
-// Get resume analyses count
 const getResumeAnalysesCount = async (userId) => {
   try {
     const analysesRef = collection(db, "users", userId, "resumeAnalyses");
@@ -179,7 +178,6 @@ const getResumeAnalysesCount = async (userId) => {
   }
 };
 
-// Get latest resume analysis
 export const getLatestResumeAnalysis = async (userId) => {
   try {
     const analysesRef = collection(db, "users", userId, "resumeAnalyses");
@@ -196,12 +194,10 @@ export const getLatestResumeAnalysis = async (userId) => {
   }
 };
 
-// Save saved job
 export const saveJob = async (userId, jobData) => {
   try {
     const savedJobsRef = collection(db, "users", userId, "savedJobs");
 
-    // Check if job already saved
     const q = query(savedJobsRef, where("jobId", "==", jobData.id));
     const existing = await getDocs(q);
 
@@ -221,7 +217,6 @@ export const saveJob = async (userId, jobData) => {
       savedAt: serverTimestamp(),
     });
 
-    // Update saved jobs count
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
     const currentCount = userDoc.data()?.savedJobsCount || 0;
@@ -237,7 +232,6 @@ export const saveJob = async (userId, jobData) => {
   }
 };
 
-// Remove saved job
 export const removeSavedJob = async (userId, jobId) => {
   try {
     const savedJobsRef = collection(db, "users", userId, "savedJobs");
@@ -248,7 +242,6 @@ export const removeSavedJob = async (userId, jobId) => {
       const { deleteDoc } = await import("firebase/firestore");
       await deleteDoc(snapshot.docs[0].ref);
 
-      // Update saved jobs count
       const userRef = doc(db, "users", userId);
       const userDoc = await getDoc(userRef);
       const currentCount = userDoc.data()?.savedJobsCount || 0;
@@ -265,7 +258,6 @@ export const removeSavedJob = async (userId, jobId) => {
   }
 };
 
-// Get all saved jobs
 export const getSavedJobs = async (userId) => {
   try {
     const savedJobsRef = collection(db, "users", userId, "savedJobs");
@@ -279,7 +271,6 @@ export const getSavedJobs = async (userId) => {
   }
 };
 
-// Track job application
 export const trackJobApplication = async (userId, jobData) => {
   try {
     const applicationsRef = collection(db, "users", userId, "applications");
@@ -292,7 +283,6 @@ export const trackJobApplication = async (userId, jobData) => {
       status: "applied",
     });
 
-    // Update applications count
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
     const currentCount = userDoc.data()?.applicationsCount || 0;
@@ -308,7 +298,6 @@ export const trackJobApplication = async (userId, jobData) => {
   }
 };
 
-// Get all tracked job applications
 export const getJobApplications = async (userId) => {
   try {
     const applicationsRef = collection(db, "users", userId, "applications");
@@ -321,7 +310,6 @@ export const getJobApplications = async (userId) => {
   }
 };
 
-// Get all resume analyses history
 export const getResumeAnalyses = async (userId) => {
   try {
     const analysesRef = collection(db, "users", userId, "resumeAnalyses");
@@ -334,8 +322,6 @@ export const getResumeAnalyses = async (userId) => {
   }
 };
 
-
-// Get user dashboard stats
 export const getUserDashboardStats = async (userId) => {
   try {
     const userRef = doc(db, "users", userId);
@@ -375,7 +361,6 @@ export const getUserDashboardStats = async (userId) => {
   }
 };
 
-// Initialize user document on signup
 export const initializeUserDocument = async (userId, email, name = "") => {
   try {
     const userRef = doc(db, "users", userId);
@@ -398,7 +383,6 @@ export const initializeUserDocument = async (userId, email, name = "") => {
   }
 };
 
-// Update user plan details after payment
 export const updateUserSubscription = async (userId, planData) => {
   try {
     const userRef = doc(db, "users", userId);
