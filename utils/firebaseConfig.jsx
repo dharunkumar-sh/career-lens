@@ -177,6 +177,9 @@ export const saveResumeAnalysis = async (userId, analysisData) => {
   try {
     const userRef = doc(db, "users", userId);
     const analysesRef = collection(db, "users", userId, "resumeAnalyses");
+    
+    const currentCount = await getResumeAnalysesCount(userId);
+
     const analysisDoc = await addDoc(analysesRef, {
       ...analysisData,
       createdAt: serverTimestamp(),
@@ -189,7 +192,7 @@ export const saveResumeAnalysis = async (userId, analysisData) => {
         skills: analysisData.skills?.present || [],
         analyzedAt: new Date().toISOString(),
       },
-      totalResumesAnalyzed: (await getResumeAnalysesCount(userId)) + 1,
+      totalResumesAnalyzed: currentCount + 1,
       updatedAt: serverTimestamp(),
     });
 
@@ -361,13 +364,14 @@ export const getUserDashboardStats = async (userId) => {
 
     if (userDoc.exists()) {
       const data = userDoc.data();
+      const actualCount = await getResumeAnalysesCount(userId);
       return {
         name: data.name || "",
         email: data.email || "",
         resumeScore: data.latestResumeScore || 0,
         savedJobsCount: data.savedJobsCount || 0,
         applicationsCount: data.applicationsCount || 0,
-        totalResumesAnalyzed: data.totalResumesAnalyzed || 0,
+        totalResumesAnalyzed: actualCount,
         skills: data.latestResumeAnalysis?.skills || [],
         lastAnalyzedAt: data.latestResumeAnalysis?.analyzedAt || null,
         plan: data.plan || "free",

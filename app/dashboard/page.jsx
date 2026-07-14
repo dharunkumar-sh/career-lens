@@ -137,11 +137,6 @@ export default function DashboardPage() {
               {stats.resumeScore > 0 ? `${stats.resumeScore}%` : "—"}
             </p>
           )}
-          {stats.lastAnalyzedAt && (
-            <p className="text-[10px] text-slate-500 mt-1">
-              Last analyzed: {new Date(stats.lastAnalyzedAt).toLocaleDateString()}
-            </p>
-          )}
         </div>
 
         <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-amber-500/30 transition-all shadow-lg">
