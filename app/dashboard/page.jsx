@@ -14,6 +14,7 @@ import {
   Send,
   BarChart3,
   Sparkles,
+  Compass,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -231,7 +232,32 @@ export default function DashboardPage() {
         )}
 
         {/* Dashboard Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          {/* Skill Gap Roadmap Card */}
+          <div className="bg-linear-to-br from-cyan-950/40 via-white/5 to-white/5 backdrop-blur-md border border-cyan-500/30 rounded-lg p-6 hover:bg-white/10 hover:border-cyan-400 transition-all shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl -mr-6 -mt-6 group-hover:bg-cyan-500/20 transition-all" />
+            <div className="flex items-center gap-3 mb-4 relative z-10">
+              <div className="w-12 h-12 bg-linear-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md shadow-cyan-500/20">
+                <Compass className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  Skill Gap Roadmap
+                </h3>
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">AI Powered</span>
+              </div>
+            </div>
+            <p className="text-slate-300 text-sm mb-4 relative z-10 leading-relaxed">
+              Compare current vs target role, track missing skills, and get personalized AI transition advice
+            </p>
+            <Link
+              href="/dashboard/skill-gap"
+              className="w-full px-4 py-2 bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg font-bold transition-all block text-center cursor-pointer shadow-lg shadow-cyan-500/20 relative z-10"
+            >
+              Analyze Skill Gap
+            </Link>
+          </div>
+
           {/* Resume Analysis Card */}
           <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-lg p-6 hover:bg-white/10 hover:border-blue-500/50 transition-all shadow-lg">
             <div className="flex items-center gap-3 mb-4">
