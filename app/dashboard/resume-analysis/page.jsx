@@ -136,6 +136,46 @@ export default function ResumeAnalysisPage() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    const toastId = toast.loading("Generating enterprise PDF report...");
+    try {
+      const html2canvas = (await import("html2canvas-pro")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const element1 = document.getElementById("resume-report-print-page-1");
+      const element2 = document.getElementById("resume-report-print-page-2");
+      if (!element1 || !element2) throw new Error("Report page content not found");
+
+      const options = {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#090a0b",
+        windowWidth: 1000,
+      };
+
+      const canvas1 = await html2canvas(element1, options);
+      const canvas2 = await html2canvas(element2, options);
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const imgWidth = 210;
+      const imgHeight = 297;
+
+      const imgData1 = canvas1.toDataURL("image/png");
+      pdf.addImage(imgData1, "PNG", 0, 0, imgWidth, imgHeight, "", "FAST");
+
+      const imgData2 = canvas2.toDataURL("image/png");
+      pdf.addPage();
+      pdf.addImage(imgData2, "PNG", 0, 0, imgWidth, imgHeight, "", "FAST");
+
+      pdf.save(`Resume_Analysis_Report_${Date.now()}.pdf`);
+      toast.success("PDF Report downloaded successfully!", { id: toastId });
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF. Please try again.", { id: toastId });
+    }
+  };
+
   const getScoreColor = (score) => {
     if (score >= 80)
       return {
@@ -284,7 +324,7 @@ export default function ResumeAnalysisPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-8">
             <p className="text-red-400 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 shrink-0" />
               {error}
             </p>
           </div>
@@ -342,7 +382,7 @@ export default function ResumeAnalysisPage() {
                   Analyze Again
                 </button>
                 <button
-                  onClick={() => window.print()}
+                  onClick={handleDownloadPDF}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
@@ -350,6 +390,8 @@ export default function ResumeAnalysisPage() {
                 </button>
               </div>
             </div>
+
+            <div id="resume-report-content" className="space-y-6 pt-4">
 
             {/* Score Card - Hero Section */}
             <div
@@ -676,83 +718,609 @@ export default function ResumeAnalysisPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
                     Skills Found ({analysisResult.skills?.present?.length || 0})
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {analysisResult.skills?.present?.length > 0 ? (
-                      analysisResult.skills.present.map((skill, index) => (
+                      analysisResult.skills.present.slice(0, 18).map((skill, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1.5 bg-green-500/15 text-green-400 rounded-lg text-sm font-medium"
+                          className="px-2 py-1 bg-green-500/15 text-green-400 rounded text-xs font-medium"
                         >
                           {skill}
                         </span>
                       ))
                     ) : (
-                      <p className="text-slate-500 text-sm">
+                      <p className="text-slate-500 text-xs">
                         No technical skills detected
                       </p>
+                    )}
+                    {analysisResult.skills?.present?.length > 18 && (
+                      <span className="text-slate-500 text-xs self-center">
+                        +{analysisResult.skills.present.length - 18} more
+                      </span>
                     )}
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-2">
+                    <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
                     Recommended Skills to Add
                   </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {analysisResult.skills?.missing?.map((skill, index) => (
+                  <div className="flex flex-wrap gap-1.5">
+                    {analysisResult.skills?.missing?.slice(0, 12).map((skill, index) => (
                       <span
                         key={index}
-                        className="px-3 py-1.5 bg-blue-500/15 text-blue-400 rounded-lg text-sm font-medium"
+                        className="px-2 py-1 bg-blue-500/15 text-blue-400 rounded text-xs font-medium"
                       >
                         + {skill}
                       </span>
                     ))}
+                    {analysisResult.skills?.missing?.length > 12 && (
+                      <span className="text-slate-500 text-xs self-center">
+                        +{analysisResult.skills.missing.length - 12} more
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Enterprise Category Scores */}
-            {analysisResult.categoryScores && (
-              <div className="bg-white/5 backdrop-blur-md border border-cyan-500/30 rounded-xl p-6">
-                <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-amber-400" />
-                  Enterprise Deep Analysis
-                  <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> AI Powered
-                  </span>
-                </h2>
-                <p className="text-slate-400 text-sm mb-6">Per-category breakdown scored by <span className="text-cyan-400 font-medium">Career Lens AI</span></p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {Object.entries(analysisResult.categoryScores).map(([cat, score]) => {
-                    const pct = Math.min(100, Math.max(0, Number(score)));
-                    const color =
-                      pct >= 80 ? { bar: "bg-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500/30" }
-                      : pct >= 60 ? { bar: "bg-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500/30" }
-                      : pct >= 40 ? { bar: "bg-amber-500", text: "text-amber-400", ring: "ring-amber-500/30" }
-                      : { bar: "bg-red-500", text: "text-red-400", ring: "ring-red-500/30" };
-                    return (
-                      <div key={cat} className={`bg-slate-800/50 rounded-xl p-4 ring-1 ${color.ring}`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-slate-300 text-sm font-medium">{cat}</span>
-                          <span className={`text-lg font-extrabold ${color.text}`}>{pct}<span className="text-xs font-normal opacity-70">/100</span></span>
+            {analysisResult.categoryScores && (() => {
+              const planKey = (analysisResult.plan || userPlan || "free").toLowerCase();
+              let title = "Explorer AI Analysis";
+              let badge = "Free Explorer Plan";
+              let badgeColor = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+              let borderClass = "border-emerald-500/20 shadow-[0_4px_20px_rgba(16,185,129,0.05)]";
+              let IconComponent = Sparkles;
+              let description = "Standard per-category evaluation breakdown scored by Career Lens AI.";
+
+              if (planKey === "pro" || planKey === "career pro") {
+                title = "Pro AI Deep Analysis";
+                badge = "Career Pro Plan";
+                badgeColor = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+                borderClass = "border-amber-500/20 shadow-[0_4px_20px_rgba(245,158,11,0.05)]";
+                IconComponent = TrendingUp;
+                description = "Advanced per-category analysis scored by Career Lens AI for Pro Growth subscribers.";
+              } else if (planKey === "enterprise" || planKey === "placement cell" || planKey === "placement-cell") {
+                title = "Enterprise Deep Analysis";
+                badge = "Placement Cell / Enterprise";
+                badgeColor = "text-cyan-400 bg-cyan-500/10 border-cyan-500/20";
+                borderClass = "border-cyan-500/20 shadow-[0_4px_20px_rgba(6,182,212,0.05)]";
+                IconComponent = Crown;
+                description = "Comprehensive institutional-grade audit scored by Career Lens AI for placement evaluation.";
+              }
+
+              return (
+                <div className={`bg-white/5 backdrop-blur-md border ${borderClass} rounded-xl p-6 transition-all duration-300`}>
+                  <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                    <IconComponent className="w-5 h-5" />
+                    {title}
+                    <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${badgeColor}`}>
+                      {badge}
+                    </span>
+                  </h2>
+                  <p className="text-slate-400 text-sm mb-6">{description}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {Object.entries(analysisResult.categoryScores).map(([cat, score]) => {
+                      const pct = Math.min(100, Math.max(0, Number(score)));
+                      const color =
+                        pct >= 80 ? { bar: "bg-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500/30" }
+                        : pct >= 60 ? { bar: "bg-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500/30" }
+                        : pct >= 40 ? { bar: "bg-amber-500", text: "text-amber-400", ring: "ring-amber-500/30" }
+                        : { bar: "bg-red-500", text: "text-red-400", ring: "ring-red-500/30" };
+                      return (
+                        <div key={cat} className={`bg-slate-800/50 rounded-xl p-4 ring-1 ${color.ring} hover:bg-slate-800/80 transition-colors`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-300 text-sm font-medium">{cat}</span>
+                            <span className={`text-lg font-extrabold ${color.text}`}>{pct}<span className="text-xs font-normal opacity-70">/100</span></span>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${color.bar} transition-all duration-700`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${color.bar} transition-all duration-700`}
-                            style={{ width: `${pct}%` }}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+            </div>
+
+            {/* Hidden Print Container for PDF Generation */}
+            <div
+              id="resume-report-print-content"
+              style={{
+                position: "fixed",
+                top: "-9999px",
+                left: "-9999px",
+                width: "1000px",
+              }}
+            >
+              {/* PAGE 1 */}
+              <div
+                id="resume-report-print-page-1"
+                className="p-10 bg-[#090a0b] text-white flex flex-col justify-between"
+                style={{
+                  width: "1000px",
+                  height: "1400px",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="border-b border-white/10 pb-6 mb-8 flex justify-between items-end">
+                    <div>
+                      <h1 className="text-3xl font-bold text-white">Resume Analysis Report</h1>
+                    </div>
+                    {analysisResult.analyzedAt && (
+                      <p className="text-slate-500 text-xs">
+                        Generated: {new Date(analysisResult.analyzedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Score Card - Hero Section */}
+                  <div
+                    className={`bg-white/5 border ${
+                      getScoreColor(analysisResult.score || 0).border
+                    } rounded-xl p-8`}
+                  >
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                      {/* Score Circle */}
+                      <div className="relative">
+                        <div
+                          className={`w-32 h-32 rounded-full ${
+                            getScoreColor(analysisResult.score || 0).bg
+                          } flex items-center justify-center`}
+                        >
+                          <div className="text-center">
+                            <span
+                              className={`text-4xl font-bold ${
+                                getScoreColor(analysisResult.score || 0).text
+                              }`}
+                            >
+                              {analysisResult.score || 0}
+                            </span>
+                            <span
+                              className={`text-lg ${
+                                getScoreColor(analysisResult.score || 0).text
+                              }`}
+                            >
+                              %
+                            </span>
+                          </div>
+                        </div>
+                        {/* Score Ring */}
+                        <svg className="absolute inset-0 w-32 h-32 -rotate-90">
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="58"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                            className="text-slate-700"
                           />
+                          <circle
+                            cx="64"
+                            cy="64"
+                            r="58"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="none"
+                            strokeDasharray={`${
+                              ((analysisResult.score || 0) / 100) * 364
+                            } 364`}
+                            className={getScoreColor(analysisResult.score || 0).text}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Score Info */}
+                      <div className="flex-1 text-center md:text-left">
+                        <h2 className="text-2xl font-bold text-white mb-2">
+                          Resume Score
+                        </h2>
+                        <p className="text-slate-400 mb-4">
+                          {analysisResult.score >= 80 ? "Excellent! Your resume is well-optimized and stands out."
+                           : analysisResult.score >= 60 ? "Good resume! A few improvements could make it even better."
+                           : analysisResult.score >= 40 ? "Your resume needs some work. Follow the suggestions below."
+                           : "Your resume needs significant improvements. Focus on the areas highlighted."}
+                        </p>
+
+                        {/* Quick Stats */}
+                        <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-slate-500" />
+                            <span className="text-slate-300 text-sm">
+                              {analysisResult.metadata?.pageCount || 1} page
+                              {(analysisResult.metadata?.pageCount || 1) > 1
+                                ? "s"
+                                : ""}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Code className="w-4 h-4 text-slate-500" />
+                            <span className="text-slate-300 text-sm">
+                              {analysisResult.skills?.present?.length || 0} skills
+                              found
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-slate-500" />
+                            <span className="text-slate-300 text-sm">
+                              {analysisResult.metadata?.wordCount || 0} words
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Info Extracted */}
+                  {analysisResult.contactInfo &&
+                    Object.keys(analysisResult.contactInfo).length > 0 && (
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+                        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <User className="w-5 h-5 text-blue-400" />
+                          Contact Information Detected
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4">
+                          {analysisResult.contactInfo.email && (
+                            <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
+                              <Mail className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-300 text-sm truncate">
+                                {analysisResult.contactInfo.email}
+                              </span>
+                            </div>
+                          )}
+                          {analysisResult.contactInfo.phone && (
+                            <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
+                              <Phone className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-300 text-sm">
+                                {analysisResult.contactInfo.phone}
+                              </span>
+                            </div>
+                          )}
+                          {analysisResult.contactInfo.linkedin && (
+                            <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
+                              <Linkedin className="w-4 h-4 text-blue-400" />
+                              <span className="text-slate-300 text-sm truncate">
+                                {analysisResult.contactInfo.linkedin}
+                              </span>
+                            </div>
+                          )}
+                          {analysisResult.contactInfo.github && (
+                            <div className="flex items-center gap-3 bg-slate-700/30 rounded-lg p-3">
+                              <Github className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-300 text-sm truncate">
+                                {analysisResult.contactInfo.github}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {/* Statistics Grid */}
+                  {analysisResult.metadata && (
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Info className="w-5 h-5 text-slate-400" />
+                        Resume Statistics
+                      </h2>
+                      <div className="grid grid-cols-4 gap-4 mb-6">
+                        <div className="bg-linear-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-4">
+                          <p className="text-blue-400 text-xs font-medium mb-1">
+                            Word Count
+                          </p>
+                          <p className="text-2xl font-bold text-white">
+                            {analysisResult.metadata.wordCount?.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="bg-linear-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
+                          <p className="text-purple-400 text-xs font-medium mb-1">
+                            Pages
+                          </p>
+                          <p className="text-2xl font-bold text-white">
+                            {analysisResult.metadata.pageCount}
+                          </p>
+                        </div>
+                        <div className="bg-linear-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-lg p-4">
+                          <p className="text-green-400 text-xs font-medium mb-1">
+                            Action Verbs
+                          </p>
+                          <p className="text-2xl font-bold text-white">
+                            {analysisResult.metadata.actionVerbCount}
+                          </p>
+                        </div>
+                        <div className="bg-linear-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-lg p-4">
+                          <p className="text-amber-400 text-xs font-medium mb-1">
+                            Metrics Found
+                          </p>
+                          <p className="text-2xl font-bold text-white">
+                            {analysisResult.metadata.quantifiableCount}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Sections Found */}
+                      {analysisResult.metadata.sectionsFound?.length > 0 && (
+                        <div>
+                          <p className="text-slate-400 text-sm mb-3">
+                            Sections Detected in Resume
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {analysisResult.metadata.sectionsFound.map(
+                              (section, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-sm capitalize flex items-center gap-2"
+                                >
+                                  <CheckCircle className="w-3 h-3 text-green-400" />
+                                  {section}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {/* Action Verbs Found */}
+                      {analysisResult.metadata.actionVerbsFound?.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-slate-400 text-sm mb-3">
+                            Action Verbs Used
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {analysisResult.metadata.actionVerbsFound.map(
+                              (verb, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-green-500/10 text-green-400 rounded text-xs capitalize"
+                                >
+                                  {verb}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quantifiable Examples */}
+                      {analysisResult.metadata.quantifiableExamples?.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-slate-400 text-sm mb-3">
+                            Quantifiable Achievements Found
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {analysisResult.metadata.quantifiableExamples.map(
+                              (example, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-sm"
+                                >
+                                  {example}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Experience Highlights */}
+                  {analysisResult.experienceHighlights?.length > 0 && (
+                    <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Briefcase className="w-5 h-5 text-cyan-400" />
+                        Key Experience Highlights
+                      </h2>
+                      <ul className="space-y-2">
+                        {analysisResult.experienceHighlights.map(
+                          (highlight, index) => (
+                            <li
+                              key={index}
+                              className="text-slate-300 flex items-start gap-2 bg-slate-700/30 rounded-lg p-3"
+                            >
+                              <Target className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                              <span>{highlight}</span>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PAGE 2 */}
+              <div
+                id="resume-report-print-page-2"
+                className="p-10 bg-[#090a0b] text-white flex flex-col justify-between"
+                style={{
+                  width: "1000px",
+                  height: "1400px",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div className="space-y-6">
+
+                  {/* Strengths & Improvements Grid */}
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Strengths */}
+                    <div className="bg-white/5 border border-green-500/30 rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        Strengths
+                      </h2>
+                      <ul className="space-y-3">
+                        {analysisResult.strengths?.map((item, index) => (
+                          <li
+                            key={index}
+                            className="text-slate-300 flex items-start gap-3"
+                          >
+                            <span className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                              <CheckCircle className="w-3 h-3 text-green-400" />
+                            </span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Areas for Improvement */}
+                    <div className="bg-white/5 border border-amber-500/30 rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5 text-amber-400" />
+                        Areas for Improvement
+                      </h2>
+                      <ul className="space-y-3">
+                        {analysisResult.improvements?.map((item, index) => (
+                          <li
+                            key={index}
+                            className="text-slate-300 flex items-start gap-3"
+                          >
+                            <span className="w-6 h-6 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                              <AlertCircle className="w-3 h-3 text-amber-400" />
+                            </span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Skills Analysis */}
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-5">
+                    <h2 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                      <Code className="w-4 h-4 text-blue-400" />
+                      Skills Analysis
+                    </h2>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-2">
+                          <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                          Skills Found ({analysisResult.skills?.present?.length || 0})
+                        </h3>
+                        <div className="flex flex-wrap gap-1">
+                          {analysisResult.skills?.present?.length > 0 ? (
+                            analysisResult.skills.present.slice(0, 18).map((skill, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-0.5 bg-green-500/15 text-green-400 rounded text-xs font-medium"
+                              >
+                                {skill}
+                              </span>
+                            ))
+                          ) : (
+                            <p className="text-slate-500 text-xs">
+                              No technical skills detected
+                            </p>
+                          )}
+                          {analysisResult.skills?.present?.length > 18 && (
+                            <span className="text-slate-500 text-xs self-center">
+                              +{analysisResult.skills.present.length - 18} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-semibold text-slate-400 mb-2 flex items-center gap-2">
+                          <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+                          Recommended Skills to Add
+                        </h3>
+                        <div className="flex flex-wrap gap-1">
+                          {analysisResult.skills?.missing?.slice(0, 12).map((skill, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-0.5 bg-blue-500/15 text-blue-400 rounded text-xs font-medium"
+                            >
+                              + {skill}
+                            </span>
+                          ))}
+                          {analysisResult.skills?.missing?.length > 12 && (
+                            <span className="text-slate-500 text-xs self-center">
+                              +{analysisResult.skills.missing.length - 12} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {analysisResult.categoryScores && (() => {
+                    const planKey = (analysisResult.plan || userPlan || "free").toLowerCase();
+                    let title = "Explorer AI Analysis";
+                    let badge = "Free Explorer Plan";
+                    let badgeColor = "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+                    let borderClass = "border-emerald-500/20 shadow-[0_4px_20px_rgba(16,185,129,0.05)]";
+                    let IconComponent = Sparkles;
+                    let description = "Standard per-category evaluation breakdown scored by Career Lens AI.";
+
+                    if (planKey === "pro" || planKey === "career pro") {
+                      title = "Pro AI Deep Analysis";
+                      badge = "Career Pro Plan";
+                      badgeColor = "text-amber-400 bg-amber-500/10 border-amber-500/20";
+                      borderClass = "border-amber-500/20 shadow-[0_4px_20px_rgba(245,158,11,0.05)]";
+                      IconComponent = TrendingUp;
+                      description = "Advanced per-category analysis scored by Career Lens AI for Pro Growth subscribers.";
+                    } else if (planKey === "enterprise" || planKey === "placement cell" || planKey === "placement-cell") {
+                      title = "Enterprise Deep Analysis";
+                      badge = "Placement Cell / Enterprise";
+                      badgeColor = "text-cyan-400 bg-cyan-500/10 border-cyan-500/20";
+                      borderClass = "border-cyan-500/20 shadow-[0_4px_20px_rgba(6,182,212,0.05)]";
+                      IconComponent = Crown;
+                      description = "Comprehensive institutional-grade audit scored by Career Lens AI for placement evaluation.";
+                    }
+
+                    return (
+                      <div className={`bg-white/5 border ${borderClass} rounded-xl p-6 transition-all duration-300`}>
+                        <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                          <IconComponent className="w-5 h-5" />
+                          {title}
+                          <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1 ${badgeColor}`}>
+                            {badge}
+                          </span>
+                        </h2>
+                        <p className="text-slate-400 text-sm mb-6">{description}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          {Object.entries(analysisResult.categoryScores).map(([cat, score]) => {
+                            const pct = Math.min(100, Math.max(0, Number(score)));
+                            const color =
+                              pct >= 80 ? { bar: "bg-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500/30" }
+                              : pct >= 60 ? { bar: "bg-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500/30" }
+                              : pct >= 40 ? { bar: "bg-amber-500", text: "text-amber-400", ring: "ring-amber-500/30" }
+                              : { bar: "bg-red-500", text: "text-red-400", ring: "ring-red-500/30" };
+                            return (
+                              <div key={cat} className={`bg-slate-800/50 rounded-xl p-4 ring-1 ${color.ring} hover:bg-slate-800/80 transition-colors`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-slate-300 text-sm font-medium">{cat}</span>
+                                  <span className={`text-lg font-extrabold ${color.text}`}>{pct}<span className="text-xs font-normal opacity-70">/100</span></span>
+                                </div>
+                                <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${color.bar} transition-all duration-700`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
-                  })}
+                  })()}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
       </main>

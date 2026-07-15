@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 
-// Lazy-loaded singleton — avoids top-level await crashing the route module
-let _pdfjsLib = null;
-async function getPdfjsLib() {
-  if (!_pdfjsLib) {
-    _pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    _pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-  }
-  return _pdfjsLib;
+// Lazy loaded unpdf imports
+async function getUnPDF() {
+  const { getDocumentProxy, extractText } = await import("unpdf");
+  return { getDocumentProxy, extractText };
 }
 
 
@@ -17,14 +13,14 @@ async function getPdfjsLib() {
 const ANALYSIS_SYSTEM_PROMPT = `You are a world-class ATS (Applicant Tracking System) expert and senior technical recruiter with 20+ years of experience across software engineering, data science, product, and design roles.
 
 Your job is to perform a COMPLETE and THOROUGH resume analysis. You must:
-1. Extract ALL skills, technologies, tools, frameworks, and methodologies mentioned anywhere in the resume — including inside job descriptions, project bullets, and education sections. Do NOT miss any.
+1. Extract ALL skills, technologies, tools, frameworks, and methodologies mentioned anywhere in the resume — including inside job descriptions, project bullets, and education sections. Do NOT miss any. Do NOT include any skills that are not explicitly present in the resume.
 2. Score the resume from 0–100 based on ATS best practices.
 3. Suggest highly specific, actionable improvements.
 4. Identify genuine strengths.
-5. Recommend relevant skills the candidate should add based on their background.
+5. Recommend relevant skills the candidate should add based on their background. These recommended skills must be relevant missing skills that would complement their current experience.
 6. Score each category from 0–100 for detailed breakdown (required for pro/enterprise plans).
 
-CRITICAL: Return ONLY a raw JSON object — NO markdown, NO code fences, NO explanation.
+CRITICAL: Return ONLY a raw JSON object — NO markdown, NO code fences, NO explanation. Keep descriptions and list items concise.
 
 Required JSON schema:
 {
@@ -36,8 +32,8 @@ Required JSON schema:
     "github": "<github url or null>"
   },
   "skills": {
-    "present": ["every single skill, tool, language, framework found anywhere in the resume"],
-    "missing": ["6-8 relevant skills the candidate should add based on their domain"]
+    "present": ["every single skill, tool, language, framework explicitly found in the resume. Do NOT hallucinate, guess, or include any skills not written in the resume."],
+    "missing": ["3-5 key missing skills the candidate should add to complement their background, generated specifically by analyzing their resume content, experience level, and domain"]
   },
   "metadata": {
     "wordCount": <number>,
@@ -45,12 +41,12 @@ Required JSON schema:
     "sectionsFound": ["list of detected sections e.g. summary, experience, education, skills, projects"],
     "actionVerbCount": <number>,
     "quantifiableCount": <number>,
-    "actionVerbsFound": ["up to 15 action verbs used"],
-    "quantifiableExamples": ["up to 10 quantifiable achievements found e.g. 40%, $2M, 500 users"]
+    "actionVerbsFound": ["up to 5 action verbs used"],
+    "quantifiableExamples": ["up to 3 quantifiable achievements found e.g. 40%, $2M"]
   },
-  "experienceHighlights": ["up to 6 strongest achievement sentences from the resume"],
-  "strengths": ["4-6 specific things the candidate did right for ATS"],
-  "improvements": ["4-6 highly specific, actionable improvements to boost ATS score"],
+  "experienceHighlights": ["up to 3 strongest achievement sentences from the resume"],
+  "strengths": ["3 key specific things the candidate did right for ATS"],
+  "improvements": ["3 key highly specific, actionable improvements to boost ATS score"],
   "categoryScores": {
     "Contact & Branding": <0-100>,
     "Work Experience": <0-100>,
@@ -83,7 +79,7 @@ export async function POST(request) {
     }
 
     // -----------------------------------------------------------------------
-    // 1. Extract text using pdfjs-dist (legacy/Node.js build)
+    // 1. Extract text using unpdf
     // -----------------------------------------------------------------------
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
@@ -92,22 +88,14 @@ export async function POST(request) {
     let totalPages = 1;
 
     try {
-      const pdfjsLib = await getPdfjsLib();
-      const loadingTask = pdfjsLib.getDocument({ data: uint8Array, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true });
-      const pdfDoc = await loadingTask.promise;
-      totalPages = pdfDoc.numPages;
-
-      const textParts = [];
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page = await pdfDoc.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items.map((item) => item.str).join(" ");
-        if (pageText.trim()) textParts.push(pageText);
-      }
-      extractedText = textParts.join("\n\n");
-      console.log(`pdfjs: extracted ${extractedText.length} chars from ${totalPages} page(s)`);
+      const { getDocumentProxy, extractText } = await getUnPDF();
+      const pdf = await getDocumentProxy(uint8Array);
+      totalPages = pdf.numPages;
+      const { text: pagesText } = await extractText(pdf, { mergePages: false });
+      extractedText = pagesText.join("\n\n");
+      console.log(`unpdf: extracted ${extractedText.length} chars from ${totalPages} page(s)`);
     } catch (pdfErr) {
-      console.error("pdfjs extraction failed:", pdfErr);
+      console.error("unpdf extraction failed:", pdfErr);
       return NextResponse.json(
         { error: "Could not extract text from this PDF. The file may be scanned or image-based." },
         { status: 400 }
@@ -123,8 +111,7 @@ export async function POST(request) {
 
 
     // -----------------------------------------------------------------------
-    // 2. Full AI-Powered Analysis via google/gemma-4-31b-it:free (OpenRouter)
-    //    All plans get AI analysis; category scores included for all.
+    // 2. Full AI-Powered Analysis via OpenRouter
     // -----------------------------------------------------------------------
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json(
@@ -133,78 +120,96 @@ export async function POST(request) {
       );
     }
 
-    const isHighTier = plan === "pro" || plan === "enterprise";
-
     const userMessage = `Plan: ${plan}
 
 Resume text (analyse COMPLETELY — extract every skill, tool, framework, technology mentioned):
 """
-${extractedText.substring(0, 8000)}
+${extractedText.substring(0, 4500)}
 """
 
 Total pages: ${totalPages}
 
-${
-  isHighTier
-    ? "This is a PRO/ENTERPRISE analysis. Be thorough, detailed, and include all 8 categoryScores."
-    : "Provide a standard analysis. Still extract all skills completely and include categoryScores."
-}`;
+Provide an absolute best-in-class, enterprise-grade deep analysis. Extract all skills completely, provide comprehensive strengths and action points, and include all 8 categoryScores.`;
 
     let aiResult = null;
+    let lastError = null;
+    const FALLBACK_MODELS = [
+      "google/gemma-4-31b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen3-coder:free",
+      "poolside/laguna-m.1:free",
+      "cohere/north-mini-code:free"
+    ];
 
     try {
-      const openRouterResponse = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "HTTP-Referer": "https://career-lens-guide.web.app",
-            "X-Title": "Career Lens Resume Analyzer",
-          },
-          body: JSON.stringify({
-            model: "nvidia/nemotron-3-ultra-550b-a55b:free",
-            messages: [
-              { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
-              { role: "user", content: userMessage },
-            ],
-            temperature: 0.1,
-            max_tokens: 3000,
-          }),
-        },
-      );
+      for (const currentModel of FALLBACK_MODELS) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      if (!openRouterResponse.ok) {
-        const errText = await openRouterResponse.text();
-        console.error("OpenRouter error:", openRouterResponse.status, errText);
-        throw new Error("AI analysis failed");
+          console.log(`Starting OpenRouter analysis with model ${currentModel}...`);
+          const openRouterResponse = await fetch(
+            "https://openrouter.ai/api/v1/chat/completions",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: currentModel,
+                messages: [
+                  { role: "system", content: ANALYSIS_SYSTEM_PROMPT },
+                  { role: "user", content: userMessage },
+                ],
+                temperature: 0.1,
+                max_tokens: 3000,
+              }),
+              signal: controller.signal,
+            },
+          );
+
+          clearTimeout(timeoutId);
+
+          if (!openRouterResponse.ok) {
+            const errText = await openRouterResponse.text();
+            console.error(`OpenRouter error with model ${currentModel}:`, openRouterResponse.status, errText);
+            throw new Error(`AI analysis failed: ${openRouterResponse.status}`);
+          }
+
+          const orData = await openRouterResponse.json();
+          let rawContent = orData.choices?.[0]?.message?.content || "";
+
+          // Strip markdown code fences if present
+          rawContent = rawContent
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/```\s*$/i, "")
+            .trim();
+
+          // Extract JSON from the response (handles cases where model adds text before/after)
+          const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            rawContent = jsonMatch[0];
+          }
+
+          aiResult = JSON.parse(rawContent);
+          break; // Success, break out of retry loop
+        } catch (aiErr) {
+          lastError = aiErr;
+          console.warn(`Model ${currentModel} failed:`, aiErr.message || aiErr);
+        }
       }
-
-      const orData = await openRouterResponse.json();
-      let rawContent = orData.choices?.[0]?.message?.content || "";
-
-      // Strip markdown code fences if present
-      rawContent = rawContent
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/```\s*$/i, "")
-        .trim();
-
-      // Extract JSON from the response (handles cases where model adds text before/after)
-      const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        rawContent = jsonMatch[0];
+      if (!aiResult) {
+        throw lastError || new Error("All fallback models failed");
       }
-
-      aiResult = JSON.parse(rawContent);
     } catch (aiErr) {
       console.error("AI analysis error:", aiErr);
       return NextResponse.json(
         {
           error:
-            "Failed to analyze resume with Career Lens AI. Please try again.",
+            "AI service is taking longer than expected. Please try again in a few moments.",
         },
-        { status: 502 },
+        { status: 504 },
       );
     }
 

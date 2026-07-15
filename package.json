@@ -14,6 +14,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.7.0",
+    "html2canvas-pro": "^2.2.4",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.562.0",
     "motion": "^12.23.26",
     "next": "16.1.1",
@@ -24,7 +26,8 @@
     "react-dom": "19.2.3",
     "react-hot-toast": "^2.6.0",
     "react-markdown": "^10.1.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

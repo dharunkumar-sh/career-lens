@@ -57,43 +57,69 @@ Please provide:
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
 
-    // Call OpenRouter API
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemma-4-26b-a4b-it:free",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-            {
-              role: "user",
-              content: userPrompt,
-            },
-          ],
-        }),
-      }
-    );
+    const FALLBACK_MODELS = [
+      "google/gemma-4-31b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen3-coder:free",
+      "poolside/laguna-m.1:free",
+      "cohere/north-mini-code:free"
+    ];
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        errorData.error?.message || "OpenRouter API request failed"
-      );
+    let content = null;
+    let lastError = null;
+
+    for (const currentModel of FALLBACK_MODELS) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        const response = await fetch(
+          "https://openrouter.ai/api/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: currentModel,
+              messages: [
+                {
+                  role: "system",
+                  content: systemPrompt,
+                },
+                {
+                  role: "user",
+                  content: userPrompt,
+                },
+              ],
+            }),
+            signal: controller.signal,
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(
+            errorData.error?.message || `OpenRouter API request failed: ${response.status}`
+          );
+        }
+
+        const data = await response.json();
+        content = data.choices?.[0]?.message?.content;
+        if (content) {
+          break; // Success
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`ai-coach Model ${currentModel} failed:`, err.message || err);
+      }
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
     if (!content) {
-      throw new Error("No content generated from OpenRouter");
+      throw lastError || new Error("All fallback models failed");
     }
 
     return NextResponse.json({ success: true, content });

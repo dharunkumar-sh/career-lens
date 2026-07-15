@@ -292,7 +292,7 @@ export default function DashboardPage() {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span>Active Skills ({stats.skills.length})</span>
                   </h4>
-                  <div className="flex flex-wrap gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="flex flex-wrap gap-2 pr-1">
                     {stats.skills.map((skill, i) => (
                       <span
                         key={i}
@@ -311,7 +311,7 @@ export default function DashboardPage() {
                     <span>Missing Skills ({latestAnalysis?.skills?.missing?.length || 0})</span>
                   </h4>
                   {latestAnalysis?.skills?.missing && latestAnalysis.skills.missing.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                    <div className="flex flex-wrap gap-2 pr-1">
                       {latestAnalysis.skills.missing.map((skill, i) => (
                         <span
                           key={i}

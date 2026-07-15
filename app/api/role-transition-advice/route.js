@@ -27,32 +27,51 @@ Please give me your personalized expert coaching roadmap and transition advice.`
 
     // 1. Try OpenRouter if configured
     if (process.env.OPENROUTER_API_KEY) {
-      try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemma-4-26b-a4b-it:free",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.4,
-          }),
-        });
+      const FALLBACK_MODELS = [
+        "google/gemma-4-31b-it:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen3-coder:free",
+        "poolside/laguna-m.1:free",
+        "cohere/north-mini-code:free"
+      ];
 
-        if (response.ok) {
-          const data = await response.json();
-          const content = data.choices?.[0]?.message?.content;
-          if (content) {
-            return NextResponse.json({ success: true, content, source: "OpenRouter" });
+      for (const currentModel of FALLBACK_MODELS) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: currentModel,
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              temperature: 0.4,
+            }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            const data = await response.json();
+            const content = data.choices?.[0]?.message?.content;
+            if (content) {
+              return NextResponse.json({ success: true, content, source: `OpenRouter (${currentModel})` });
+            }
+          } else {
+            const errText = await response.text();
+            console.warn(`OpenRouter advice with model ${currentModel} returned: ${response.status} ${errText}`);
           }
+        } catch (err) {
+          console.warn(`OpenRouter transition advice Model ${currentModel} failed:`, err.message || err);
         }
-      } catch (err) {
-        console.error("OpenRouter transition advice error:", err);
       }
     }
 

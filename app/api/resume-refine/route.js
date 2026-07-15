@@ -66,42 +66,67 @@ Rewrite this resume to be ATS-friendly.
       );
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://career-lens-guide.web.app",
-        "X-Title": "Career Lens Resume Refiner"
-      },
-      body: JSON.stringify({
-        model: "google/gemma-4-31b-it:free",
-        messages: [
-          {
-            role: "system",
-            content: SYSTEM_PROMPT
-          },
-          {
-            role: "user",
-            content: userPrompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 4096,
-      })
-    });
+    const FALLBACK_MODELS = [
+      "google/gemma-4-31b-it:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen3-coder:free",
+      "poolside/laguna-m.1:free",
+      "cohere/north-mini-code:free"
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenRouter resume-refine error:", response.status, errText);
-      return NextResponse.json(
-        { error: "AI model failed to refine resume. Please try again." },
-        { status: 502 }
-      );
+    let refinedResume = null;
+    let lastError = null;
+
+    for (const currentModel of FALLBACK_MODELS) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: currentModel,
+            messages: [
+              {
+                role: "system",
+                content: SYSTEM_PROMPT
+              },
+              {
+                role: "user",
+                content: userPrompt
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 4096,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`OpenRouter resume-refine failed: ${response.status} ${errText}`);
+        }
+
+        const data = await response.json();
+        refinedResume = data.choices?.[0]?.message?.content || "";
+        if (refinedResume) {
+          break; // Success
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`resume-refine Model ${currentModel} failed:`, err.message || err);
+      }
     }
 
-    const data = await response.json();
-    let refinedResume = data.choices?.[0]?.message?.content || "";
+    if (!refinedResume) {
+      throw lastError || new Error("All fallback models failed");
+    }
 
     // Strip any accidental markdown code fences
     refinedResume = refinedResume.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/i, "").trim();
