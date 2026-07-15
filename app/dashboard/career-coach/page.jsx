@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -20,6 +20,7 @@ import {
   Download,
   FileDown,
 } from "lucide-react";
+import { ROLES_DATABASE } from "@/lib/roleSkillsDatabase";
 
 export default function AICareerCoachPage() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -30,6 +31,37 @@ export default function AICareerCoachPage() {
   const [resumeText, setResumeText] = useState("");
   const [generatedContent, setGeneratedContent] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+  const dropdownRef = useRef(null);
+
+  // Filter suggestions in real-time based on input
+  useEffect(() => {
+    if (!jobRole.trim()) {
+      setFilteredSuggestions([]);
+      return;
+    }
+    const query = jobRole.toLowerCase();
+    const matches = ROLES_DATABASE.filter((role) =>
+      role.title.toLowerCase().includes(query) ||
+      role.category.toLowerCase().includes(query)
+    );
+    setFilteredSuggestions(matches);
+  }, [jobRole]);
+
+  // Click outside to close suggestions dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Load last analyzed resume text if available
   useEffect(() => {
@@ -231,17 +263,39 @@ export default function AICareerCoachPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Input Section */}
           <div className="space-y-6 flex flex-col h-full">
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6">
+            <div ref={dropdownRef} className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 relative z-20">
               <label className="block text-white font-medium mb-2 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-slate-400" /> Target Job Role
               </label>
               <input
                 type="text"
                 value={jobRole}
-                onChange={(e) => setJobRole(e.target.value)}
+                onChange={(e) => {
+                  setJobRole(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
                 placeholder="e.g. Senior Frontend Engineer, Product Manager..."
                 className="w-full bg-slate-900/50 border border-white/10 rounded-lg p-4 text-slate-300 focus:outline-hidden focus:border-purple-500/50 text-sm"
               />
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute left-6 right-6 mt-1 bg-slate-950/95 backdrop-blur-lg border border-white/10 rounded-lg shadow-2xl max-h-60 overflow-y-auto z-50 divide-y divide-white/5 custom-scrollbar">
+                  {filteredSuggestions.map((role) => (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => {
+                        setJobRole(role.title);
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full px-4 py-3 text-left text-slate-300 hover:bg-purple-600/20 hover:text-white transition-colors flex flex-col items-start text-sm cursor-pointer"
+                    >
+                      <span className="font-medium text-white">{role.title}</span>
+                      <span className="text-xs text-slate-400 mt-0.5">{role.category}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {activeTab === "cover-letter" && (
