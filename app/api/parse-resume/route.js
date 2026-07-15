@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 
-// Use pdfjs-dist legacy build (Node.js compatible, no DOM/canvas required)
-const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+// Lazy-loaded singleton — avoids top-level await crashing the route module
+let _pdfjsLib = null;
+async function getPdfjsLib() {
+  if (!_pdfjsLib) {
+    _pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    _pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  }
+  return _pdfjsLib;
+}
 
 
 // -----------------------------------------------------------------------
@@ -86,6 +92,7 @@ export async function POST(request) {
     let totalPages = 1;
 
     try {
+      const pdfjsLib = await getPdfjsLib();
       const loadingTask = pdfjsLib.getDocument({ data: uint8Array, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true });
       const pdfDoc = await loadingTask.promise;
       totalPages = pdfDoc.numPages;
