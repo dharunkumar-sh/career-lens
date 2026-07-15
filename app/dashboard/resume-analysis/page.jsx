@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ProfileDropdown from "@/components/ui/profile-dropdown";
-import { saveResumeAnalysis } from "@/utils/firebaseConfig";
+import { saveResumeAnalysis, getUserDashboardStats, getLatestResumeAnalysis } from "@/utils/firebaseConfig";
 import {
   FileText,
   Upload,
@@ -23,6 +23,11 @@ import {
   TrendingUp,
   Target,
   User,
+  BarChart2,
+  Sparkles,
+  Crown,
+  Download,
+  RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -35,6 +40,8 @@ export default function ResumeAnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState(null);
+  const [userPlan, setUserPlan] = useState("free");
+  const [loadingReport, setLoadingReport] = useState(true);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -42,6 +49,31 @@ export default function ResumeAnalysisPage() {
       router.push("/login");
     }
   }, [isAuthenticated, loading, router]);
+
+  // Fetch user plan and latest analysis report from Firestore
+  useEffect(() => {
+    const fetchPlanAndReport = async () => {
+      if (user?.uid) {
+        try {
+          const [stats, latest] = await Promise.all([
+            getUserDashboardStats(user.uid),
+            getLatestResumeAnalysis(user.uid)
+          ]);
+          setUserPlan(stats?.plan || "free");
+          if (latest) {
+            setAnalysisResult(latest);
+          }
+        } catch (e) {
+          console.error("Failed to fetch user plan or report:", e);
+        } finally {
+          setLoadingReport(false);
+        }
+      } else {
+        setLoadingReport(false);
+      }
+    };
+    if (!loading && isAuthenticated) fetchPlanAndReport();
+  }, [user?.uid, loading, isAuthenticated]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -67,7 +99,7 @@ export default function ResumeAnalysisPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/parse-resume", {
+      const response = await fetch(`/api/parse-resume?plan=${encodeURIComponent(userPlan)}`, {
         method: "POST",
         body: formData,
       });
@@ -140,10 +172,10 @@ export default function ResumeAnalysisPage() {
     return "Your resume needs significant improvements. Focus on the areas highlighted.";
   };
 
-  if (loading) {
+  if (loading || loadingReport) {
     return (
       <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-slate-400 text-lg">Loading...</div>
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
       </div>
     );
   }
@@ -260,7 +292,65 @@ export default function ResumeAnalysisPage() {
 
         {/* Analysis Results */}
         {analysisResult && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 print-container">
+            {/* Print Stylesheet */}
+            <style>{`
+              @media print {
+                body, main, div, p, span, h1, h2, h3 {
+                  background: transparent !important;
+                  color: #0f172a !important; /* Dark text for readability */
+                }
+                .no-print {
+                  display: none !important;
+                }
+                .print-container {
+                  padding: 0 !important;
+                  margin: 0 !important;
+                }
+                /* Ensure borders show up on print */
+                .border, [class*="border-"] {
+                  border-color: #cbd5e1 !important;
+                }
+                /* Progress bars show background color when printing */
+                .h-2 {
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                  background-color: #f1f5f9 !important;
+                }
+                .h-full {
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+              }
+            `}</style>
+
+            {/* Quick Actions Panel */}
+            <div className="flex flex-wrap gap-4 items-center justify-between bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-4 no-print">
+              <span className="text-slate-300 text-sm font-medium">
+                Analysis ready for <span className="text-blue-400 font-semibold">{file?.name || "your resume"}</span>
+              </span>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setFile(null);
+                    setAnalysisResult(null);
+                    setError(null);
+                  }}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Analyze Again
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Download PDF Report
+                </button>
+              </div>
+            </div>
+
             {/* Score Card - Hero Section */}
             <div
               className={`bg-white/5 backdrop-blur-md border ${
@@ -625,6 +715,44 @@ export default function ResumeAnalysisPage() {
                 </div>
               </div>
             </div>
+
+            {/* Enterprise Category Scores */}
+            {analysisResult.categoryScores && (
+              <div className="bg-white/5 backdrop-blur-md border border-cyan-500/30 rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  Enterprise Deep Analysis
+                  <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> AI Powered
+                  </span>
+                </h2>
+                <p className="text-slate-400 text-sm mb-6">Per-category breakdown scored by <span className="text-cyan-400 font-medium">Career Lens AI</span></p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Object.entries(analysisResult.categoryScores).map(([cat, score]) => {
+                    const pct = Math.min(100, Math.max(0, Number(score)));
+                    const color =
+                      pct >= 80 ? { bar: "bg-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500/30" }
+                      : pct >= 60 ? { bar: "bg-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500/30" }
+                      : pct >= 40 ? { bar: "bg-amber-500", text: "text-amber-400", ring: "ring-amber-500/30" }
+                      : { bar: "bg-red-500", text: "text-red-400", ring: "ring-red-500/30" };
+                    return (
+                      <div key={cat} className={`bg-slate-800/50 rounded-xl p-4 ring-1 ${color.ring}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-slate-300 text-sm font-medium">{cat}</span>
+                          <span className={`text-lg font-extrabold ${color.text}`}>{pct}<span className="text-xs font-normal opacity-70">/100</span></span>
+                        </div>
+                        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${color.bar} transition-all duration-700`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

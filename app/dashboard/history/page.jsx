@@ -182,7 +182,7 @@ export default function HistoryPage() {
                       href="/dashboard/resume-analysis"
                       className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white rounded-xl text-sm transition-all"
                     >
-                      Analyze Again
+                      View Analysis
                     </Link>
                     <Link
                       href="/dashboard/skill-gap"

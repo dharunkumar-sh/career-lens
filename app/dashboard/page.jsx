@@ -114,7 +114,7 @@ export default function DashboardPage() {
           {loadingStats ? (
             <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
           ) : stats.plan === "pro" ? (
-            <span className="text-amber-500 text-sm font-extrabold flex items-center gap-1.5 animate-pulse">
+            <span className="text-amber-500 text-sm font-extrabold flex items-center gap-1.5">
               <Sparkles className="w-4 h-4" /> Career Pro ({stats.billingCycle === "yearly" ? "Annual" : "Monthly"})
             </span>
           ) : (
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                 href="/dashboard/resume-analysis"
                 className="w-full text-center py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 hover:text-white rounded-xl text-sm transition-all"
               >
-                Re-Analyze
+                View Analysis
               </Link>
               <Link
                 href="/dashboard/skill-gap"

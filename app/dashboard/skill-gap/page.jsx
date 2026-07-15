@@ -129,7 +129,6 @@ export default function SkillGapRoadmapPage() {
             );
             if (matchedIds.length > 0) {
               setCustomPresentSkills((prev) => [...new Set([...prev, ...matchedIds])]);
-              toast.success(`Imported ${matchedIds.length} skills from your last analyzed resume!`);
             }
           }
         }

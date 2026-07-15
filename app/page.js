@@ -110,13 +110,14 @@ export default function Home() {
           try {
             toast.loading("Saving your payment details...");
             
-            // Store payment details in Firestore properly
-            await updateUserSubscription(user.uid, {
-              plan: "pro",
-              billingCycle,
-              paymentId: response.razorpay_payment_id,
-              orderId: response.razorpay_order_id,
-            });
+             // Store payment details in Firestore properly
+             await updateUserSubscription(user.uid, {
+               plan: "pro",
+               billingCycle,
+               paymentId: response.razorpay_payment_id,
+               orderId: response.razorpay_order_id,
+               amount: proPrice,
+             });
 
             toast.dismiss();
             toast.success("Subscribed successfully! Welcome to Career Pro!");

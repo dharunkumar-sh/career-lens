@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 const SYSTEM_PROMPT = `You are an expert ATS (Applicant Tracking System) Resume Writer & Career Coach.
 Your goal is to rewrite the user's resume to be highly optimized for ATS software while maintaining readability for human recruiters.
@@ -26,13 +23,6 @@ Do not include conversational filler like "Here is your resume".
 
 export async function POST(request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured" },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { currentResumeText, analysisResults, targetRole } = body;
 
@@ -42,8 +32,6 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const missingSkills =
       analysisResults?.skills?.missing?.join(", ") || "None detected";
@@ -71,19 +59,61 @@ Rewrite this resume to be ATS-friendly.
 - Fix any grammar or clarity issues.
 `;
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: SYSTEM_PROMPT + "\n\n" + userPrompt }],
-        },
-      ],
+    if (!process.env.OPENROUTER_API_KEY) {
+      return NextResponse.json(
+        { error: "OPENROUTER_API_KEY is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://career-lens-guide.web.app",
+        "X-Title": "Career Lens Resume Refiner"
+      },
+      body: JSON.stringify({
+        model: "google/gemma-4-31b-it:free",
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 4096,
+      })
     });
 
-    const response = result.response;
-    const text = response.text();
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("OpenRouter resume-refine error:", response.status, errText);
+      return NextResponse.json(
+        { error: "AI model failed to refine resume. Please try again." },
+        { status: 502 }
+      );
+    }
 
-    return NextResponse.json({ success: true, refinedResume: text });
+    const data = await response.json();
+    let refinedResume = data.choices?.[0]?.message?.content || "";
+
+    // Strip any accidental markdown code fences
+    refinedResume = refinedResume.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+    if (!refinedResume) {
+      return NextResponse.json(
+        { error: "No content returned from the AI model." },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ success: true, refinedResume });
   } catch (error) {
     console.error("Resume Refine API Error:", error);
     return NextResponse.json(

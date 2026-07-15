@@ -58,12 +58,6 @@ export default function DashboardLayout({ children }) {
 
   const featureItems = [
     {
-      name: "Skill Gap Roadmap",
-      href: "/dashboard/skill-gap",
-      icon: Compass,
-      color: "text-cyan-400"
-    },
-    {
       name: "Resume Analysis",
       href: "/dashboard/resume-analysis",
       icon: FileText,
@@ -80,6 +74,12 @@ export default function DashboardLayout({ children }) {
       href: "/dashboard/career-coach",
       icon: Sparkles,
       color: "text-purple-400"
+    },
+    {
+      name: "Skill Gap Analysis",
+      href: "/dashboard/skill-gap",
+      icon: Compass,
+      color: "text-cyan-400"
     }
   ];
 

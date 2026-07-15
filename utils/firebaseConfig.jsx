@@ -430,11 +430,48 @@ export const updateUserSubscription = async (userId, planData) => {
       subscribedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    const paymentsRef = collection(db, "payments");
+    await addDoc(paymentsRef, {
+      userId,
+      plan: planData.plan,
+      billingCycle: planData.billingCycle,
+      paymentId: planData.paymentId,
+      orderId: planData.orderId,
+      amount: planData.amount || (planData.billingCycle === "yearly" ? 649 * 12 : 799),
+      currency: "INR",
+      status: "successful",
+      createdAt: serverTimestamp(),
+    });
+
     return { success: true };
   } catch (error) {
     console.error("Error updating user subscription:", error);
     throw error;
   }
+};
+
+export const getUserPayments = async (userId) => {
+  try {
+    const paymentsRef = collection(db, "payments");
+    const q = query(paymentsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Error getting user payments:", error);
+    throw error;
+  }
+};
+
+export const syncUserPayments = (userId, callback) => {
+  const paymentsRef = collection(db, "payments");
+  const q = query(paymentsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const payments = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    callback(payments);
+  }, (error) => {
+    console.error("Error syncing payments:", error);
+  });
 };
 
 export { onAuthStateChanged, applyActionCode };
