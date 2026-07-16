@@ -64,6 +64,123 @@ export default function ProfilePage() {
     photoURL: "",
   });
 
+  const [errors, setErrors] = useState({
+    displayName: "",
+    dob: "",
+    phone: "",
+    title: "",
+    bio: "",
+    skills: "",
+    experience: "",
+    linkedin: "",
+    github: "",
+  });
+
+  const [touched, setTouched] = useState({
+    displayName: false,
+    dob: false,
+    phone: false,
+    title: false,
+    bio: false,
+    skills: false,
+    experience: false,
+    linkedin: false,
+    github: false,
+  });
+
+  const validateField = (name, value) => {
+    let error = "";
+    switch (name) {
+      case "displayName":
+        if (!value || value.trim().length < 2) {
+          error = "Full name must be at least 2 characters.";
+        } else if (!/^[a-zA-Z\s\-]+$/.test(value)) {
+          error = "Full name can only contain letters, spaces, and hyphens.";
+        }
+        break;
+      case "dob":
+        if (!value || (typeof value === "string" && !value.trim())) {
+          error = "Date of birth is required.";
+        } else {
+          const selectedDate = new Date(value);
+          const today = new Date();
+          if (isNaN(selectedDate.getTime()) || selectedDate >= today) {
+            error = "Date of birth must be a valid date in the past.";
+          }
+        }
+        break;
+      case "phone":
+        if (!value || (typeof value === "string" && !value.trim())) {
+          error = "Phone number is required.";
+        } else if (!/^\+?[0-9\s\-()]{7,15}$/.test(value)) {
+          error = "Phone number must be between 7 and 15 digits.";
+        }
+        break;
+      case "title":
+        if (!value || value.trim().length < 3) {
+          error = "Job title must be at least 3 characters.";
+        }
+        break;
+      case "bio":
+        if (!value || value.trim().length < 10) {
+          error = "Bio must be at least 10 characters.";
+        }
+        break;
+      case "skills":
+        if (!value || value.trim().length === 0) {
+          error = "Skills are required.";
+        }
+        break;
+      case "experience":
+        if (!value || value.trim().length === 0) {
+          error = "Years of experience is required.";
+        }
+        break;
+      case "linkedin":
+        if (!value || value.trim().length < 3) {
+          error = "LinkedIn username must be at least 3 characters.";
+        } else if (!/^[a-zA-Z0-9\-_]+$/.test(value)) {
+          error = "Invalid LinkedIn username format.";
+        }
+        break;
+      case "github":
+        if (!value || value.trim().length < 1) {
+          error = "GitHub username is required.";
+        } else if (!/^[a-zA-Z0-9\-]+$/.test(value)) {
+          error = "Invalid GitHub username format.";
+        }
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
+
+  useEffect(() => {
+    if (!loadingProfile) {
+      setErrors({
+        displayName: validateField("displayName", profile.displayName),
+        dob: validateField("dob", profile.dob),
+        phone: validateField("phone", profile.phone),
+        title: validateField("title", profile.title),
+        bio: validateField("bio", profile.bio),
+        skills: validateField("skills", profile.skills),
+        experience: validateField("experience", profile.experience),
+        linkedin: validateField("linkedin", profile.linkedin),
+        github: validateField("github", profile.github),
+      });
+    }
+  }, [profile, loadingProfile]);
+
+  const isBasicValid = !errors.displayName && !errors.dob && !errors.phone && !!profile.displayName?.trim() && !!profile.dob?.trim() && !!profile.phone?.trim();
+  const isProfessionalValid = !errors.title && !errors.bio && !errors.skills && !errors.experience && !!profile.title?.trim() && !!profile.bio?.trim() && !!profile.skills?.trim() && !!profile.experience?.trim();
+  const isSocialValid = !errors.linkedin && !errors.github && !!profile.linkedin?.trim() && !!profile.github?.trim();
+
   const tabs = [
     { id: "basic", label: "Basic Info" },
     { id: "professional", label: "Professional Details" },
@@ -140,6 +257,7 @@ export default function ProfilePage() {
     }
 
     setProfile((prev) => ({ ...prev, [name]: finalValue }));
+    setTouched((prev) => ({ ...prev, [name]: true }));
   };
 
   const handleImageChange = (e) => {
@@ -262,6 +380,10 @@ export default function ProfilePage() {
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
+    if (!isBasicValid || !isProfessionalValid || !isSocialValid) {
+      toast.error("Please fill in all required fields correctly before saving.");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -332,23 +454,32 @@ export default function ProfilePage() {
 
         {/* Step Progress Indicator (Form Pagination) */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mb-8 bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-2 gap-2">
-          {tabs.map((tab, idx) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 text-center py-3 rounded-xl font-semibold transition-all duration-200 cursor-pointer ${
-                activeTab === tab.id
-                  ? "bg-linear-to-r from-cyan-500 to-blue-500 text-slate-900 shadow-md shadow-cyan-950/20"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-              }`}
-            >
-              <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${
-                activeTab === tab.id ? "bg-slate-900/20 text-slate-950 font-bold" : "bg-white/10 text-slate-400"
-              }`}>{idx + 1}</span>
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map((tab, idx) => {
+            const isDisabled = 
+              (tab.id === "professional" && !isBasicValid) ||
+              (tab.id === "social" && (!isBasicValid || !isProfessionalValid)) ||
+              (tab.id === "preview" && (!isBasicValid || !isProfessionalValid || !isSocialValid));
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => !isDisabled && setActiveTab(tab.id)}
+                disabled={isDisabled}
+                className={`flex-1 text-center py-3 rounded-xl font-semibold transition-all duration-200 ${
+                  activeTab === tab.id
+                    ? "bg-linear-to-r from-cyan-500 to-blue-500 text-slate-900 shadow-md shadow-cyan-950/20 cursor-pointer"
+                    : isDisabled
+                    ? "text-slate-650 opacity-40 cursor-not-allowed"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5 cursor-pointer"
+                }`}
+              >
+                <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${
+                  activeTab === tab.id ? "bg-slate-900/20 text-slate-950 font-bold" : "bg-white/10 text-slate-400"
+                }`}>{idx + 1}</span>
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Profile Form */}
@@ -423,10 +554,18 @@ export default function ProfilePage() {
                         name="displayName"
                         value={profile.displayName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="John Doe"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                        className={`w-full pl-10 pr-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                          touched.displayName && errors.displayName
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                        }`}
                       />
                     </div>
+                    {touched.displayName && errors.displayName && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.displayName}</p>
+                    )}
                   </div>
 
                   <div>
@@ -460,9 +599,17 @@ export default function ProfilePage() {
                         name="dob"
                         value={profile.dob}
                         onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200 cursor-pointer scheme-dark"
+                        onBlur={handleBlur}
+                        className={`w-full pl-10 pr-4 py-3 bg-slate-950/45 border rounded-xl text-white focus:outline-none focus:ring-1 transition-all duration-200 cursor-pointer scheme-dark ${
+                          touched.dob && errors.dob
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                        }`}
                       />
                     </div>
+                    {touched.dob && errors.dob && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.dob}</p>
+                    )}
                   </div>
 
                   <div>
@@ -478,10 +625,18 @@ export default function ProfilePage() {
                         name="phone"
                         value={profile.phone}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="+91 98765 43210"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                        className={`w-full pl-10 pr-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                          touched.phone && errors.phone
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                        }`}
                       />
                     </div>
+                    {touched.phone && errors.phone && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.phone}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -490,8 +645,13 @@ export default function ProfilePage() {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setActiveTab("professional")}
-                  className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-cyan-950/20 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                  onClick={() => isBasicValid && setActiveTab("professional")}
+                  disabled={!isBasicValid}
+                  className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                    isBasicValid
+                      ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-950/20 cursor-pointer"
+                      : "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                  }`}
                 >
                   <span>Next Step</span>
                   <ChevronRight className="w-5 h-5" />
@@ -516,9 +676,17 @@ export default function ProfilePage() {
                       name="title"
                       value={profile.title}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="Senior Software Engineer"
-                      className="w-full px-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                      className={`w-full px-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                        touched.title && errors.title
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                          : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                      }`}
                     />
+                    {touched.title && errors.title && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.title}</p>
+                    )}
                   </div>
 
                   <div>
@@ -529,10 +697,18 @@ export default function ProfilePage() {
                       name="bio"
                       value={profile.bio}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="Tell us about yourself, your career highlights, and goals..."
                       rows={4}
-                      className="w-full px-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200 resize-none"
+                      className={`w-full px-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 resize-none ${
+                        touched.bio && errors.bio
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                          : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                      }`}
                     />
+                    {touched.bio && errors.bio && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.bio}</p>
+                    )}
                   </div>
 
                   <div>
@@ -544,9 +720,17 @@ export default function ProfilePage() {
                       name="skills"
                       value={profile.skills}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="JavaScript, React, Node.js, Python"
-                      className="w-full px-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                      className={`w-full px-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                        touched.skills && errors.skills
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                          : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                      }`}
                     />
+                    {touched.skills && errors.skills && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.skills}</p>
+                    )}
                   </div>
 
                   <div>
@@ -558,9 +742,17 @@ export default function ProfilePage() {
                       name="experience"
                       value={profile.experience}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="5 years"
-                      className="w-full px-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                      className={`w-full px-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                        touched.experience && errors.experience
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                          : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                      }`}
                     />
+                    {touched.experience && errors.experience && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.experience}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -577,8 +769,13 @@ export default function ProfilePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab("social")}
-                  className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-cyan-950/20 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                  onClick={() => isProfessionalValid && setActiveTab("social")}
+                  disabled={!isProfessionalValid}
+                  className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                    isProfessionalValid
+                      ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-950/20 cursor-pointer"
+                      : "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                  }`}
                 >
                   <span>Next Step</span>
                   <ChevronRight className="w-5 h-5" />
@@ -607,10 +804,18 @@ export default function ProfilePage() {
                         name="linkedin"
                         value={profile.linkedin}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="Enter LinkedIn username"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                        className={`w-full pl-10 pr-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                          touched.linkedin && errors.linkedin
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                        }`}
                       />
                     </div>
+                    {touched.linkedin && errors.linkedin && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.linkedin}</p>
+                    )}
                   </div>
 
                   <div>
@@ -626,10 +831,18 @@ export default function ProfilePage() {
                         name="github"
                         value={profile.github}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         placeholder="Enter GitHub username"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-950/45 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/30 transition-all duration-200"
+                        className={`w-full pl-10 pr-4 py-3 bg-slate-950/45 border rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-1 transition-all duration-200 ${
+                          touched.github && errors.github
+                            ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
+                            : "border-white/10 focus:border-cyan-400 focus:ring-cyan-400/30"
+                        }`}
                       />
                     </div>
+                    {touched.github && errors.github && (
+                      <p className="text-red-500 text-xs mt-1.5">{errors.github}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -647,15 +860,24 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-4">
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 font-bold rounded-xl transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                    disabled={saving || !isBasicValid || !isProfessionalValid || !isSocialValid}
+                    className={`px-6 py-3 font-bold rounded-xl border transition-all duration-200 flex items-center gap-2 ${
+                      !saving && isBasicValid && isProfessionalValid && isSocialValid
+                        ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-white/10 cursor-pointer"
+                        : "bg-slate-900 text-slate-650 border-white/5 cursor-not-allowed opacity-55"
+                    }`}
                   >
                     {saving ? "Saving..." : "Save Progress"}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("preview")}
-                    className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-cyan-950/20 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                    onClick={() => isSocialValid && setActiveTab("preview")}
+                    disabled={!isSocialValid}
+                    className={`px-6 py-3 font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 ${
+                      isSocialValid
+                        ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-950/20 cursor-pointer"
+                        : "bg-slate-800 text-slate-500 border border-white/5 cursor-not-allowed opacity-50"
+                    }`}
                   >
                     <span>Next: View Profile</span>
                     <ChevronRight className="w-5 h-5" />
